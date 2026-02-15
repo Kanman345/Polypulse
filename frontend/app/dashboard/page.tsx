@@ -122,7 +122,7 @@ export default function MarketPulseDashboard() {
               </Card>
 
               {/* Fear Index & Sector Performance */}
-              <FearIndex recessionProbability={data.analysis.crowd_signals.recession_probability} />
+              <FearIndex recessionProbability={data.analysis.crowd_signals.recession_probability} sectorPerformance={data.analysis.sector_performance || []} />
 
               {/* Market Regime Section */}
               <MarketRegimeSection regime={data.analysis.market_regime} riskIndicators={data.analysis.risk_indicators} />

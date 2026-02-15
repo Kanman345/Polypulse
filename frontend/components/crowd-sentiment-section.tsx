@@ -47,7 +47,7 @@ export function CrowdSentimentSection({ marketData, crowdSignals }: CrowdSentime
           <TabsList className="mb-6 flex-wrap">
             {uniqueMarkets.map((market, idx) => (
               <TabsTrigger key={idx} value={idx.toString()} className="text-xs">
-                {market.event_key.replace(/_/g, " ").toUpperCase().slice(0, 20)}
+                {market.market_question.slice(0, 30)}...
               </TabsTrigger>
             ))}
           </TabsList>

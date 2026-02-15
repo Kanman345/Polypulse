@@ -309,7 +309,16 @@ def run_llm_analysis(market_data):
         "ticker": "",
         "sector": "",
         "reasoning": "",
-        "expected_outperformance": "Moderate | High"
+        "expected_outperformance": "Moderate | High",
+        "price_target": number (estimated target price in USD),
+        "target_period": "string (e.g., '3-6 months', '6-12 months', '12+ months')"
+        }}
+    ],
+    "sector_performance": [
+        {{
+        "name": "sector_name",
+        "performance": number (YTD return as decimal: e.g., 12.5 for +12.5%),
+        "change": "string (e.g., '+2.1%' or '-0.8%')"
         }}
     ],
     "risk_indicators": {{
@@ -334,15 +343,25 @@ def run_llm_analysis(market_data):
     - Do NOT copy a single price-level probability as confidence.
     - Consider both upside levels and downside protection
     - Do NOT include a generic equities outlook
+    - For each stock recommendation, provide a realistic price_target based on the stock's sector outlook and market conditions
+    - price_target should be realistic (typically 10-50% upside for "Moderate" and 30-100%+ for "High" expected outperformance)
+    - target_period must be one of: "1-3 months", "3-6 months", "6-12 months", "12+ months"
+    - sector_performance MUST include 5 sectors: Technology, Healthcare, Financials, Industrials, Energy
+    - Sector performance values should reflect the market outlook and recession/rate probabilities
+    - Use realistic YTD performance ranges (-15% to +20% range)
+    - Higher recession probability should lead to lower energy and industrial performance
+    - Fed policy and rate expectations should influence financial sector performance
 
     CONSISTENCY RULES (MANDATORY):
     - If recession_probability > 0.6:
     - market_sentiment MUST NOT be "Bullish"
     - market_regime.risk MUST be "Risk-Off" or "Transitional"
+    - Energy and Industrials performance MUST be negative or near-zero
     - If NVIDIA has ≥ 2 price targets ≥ $200 with probability ≥ 0.8:
         nvidia.bias MUST be "Positive"
     - If fed_policy_bias is "Hawkish" and rate_cut_bias is "Unlikely":
     - liquidity MUST NOT be "Easing"
+    - Financials performance MUST reflect rate environment
     - If volatility is "Elevated":
     - market_sentiment score MUST be ≤ 60
 

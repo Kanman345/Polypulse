@@ -95,6 +95,18 @@ export function WeeklyRecommendations({ topStocks = [] }: WeeklyRecommendationsP
                   <p className="text-xs text-muted-foreground mb-1">Sector</p>
                   <p className="text-lg font-bold text-accent">{stock.sector}</p>
                 </div>
+                {stock.price_target && (
+                  <div className="border-t border-border pt-3">
+                    <p className="text-xs text-muted-foreground mb-1">Price Target</p>
+                    <p className="text-lg font-bold text-green-400">${stock.price_target.toFixed(2)}</p>
+                  </div>
+                )}
+                {stock.target_period && (
+                  <div className="border-t border-border pt-3">
+                    <p className="text-xs text-muted-foreground mb-1">Time Horizon</p>
+                    <p className="text-lg font-bold">{stock.target_period}</p>
+                  </div>
+                )}
                 <div className={`rounded-lg p-3 ${
                   direction === "long" 
                     ? "bg-green-500/10 border border-green-500/30" 

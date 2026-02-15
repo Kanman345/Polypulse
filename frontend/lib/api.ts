@@ -29,6 +29,14 @@ export interface TopStock {
   sector: string
   reasoning: string
   expected_outperformance: 'Moderate' | 'High'
+  price_target?: number
+  target_period?: string
+}
+
+export interface SectorPerformance {
+  name: string
+  performance: number
+  change: string
 }
 
 export interface MarketAnalysis {
@@ -52,6 +60,7 @@ export interface MarketAnalysis {
     us_economy: AssetOutlook
   }
   top_stocks: TopStock[]
+  sector_performance: SectorPerformance[]
   risk_indicators: {
     bubble_risk: number
     market_fragility: number

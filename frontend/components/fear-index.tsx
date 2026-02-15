@@ -2,9 +2,11 @@
 
 import { Card } from "@/components/ui/card"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts"
+import { SectorPerformance } from "@/lib/api"
 
 interface FearIndexProps {
   recessionProbability: number
+  sectorPerformance: SectorPerformance[]
 }
 
 const fearIndexData = [
@@ -16,15 +18,7 @@ const fearIndexData = [
   { month: "Jun", fear: 58, sector: "Industrials" },
 ]
 
-const sectorPerformance = [
-  { name: "Technology", performance: 12.5, change: "+2.1%" },
-  { name: "Healthcare", performance: 8.3, change: "+1.2%" },
-  { name: "Financials", performance: 5.7, change: "-0.8%" },
-  { name: "Industrials", performance: 3.2, change: "-1.5%" },
-  { name: "Energy", performance: -2.4, change: "-3.2%" },
-]
-
-export function FearIndex({ recessionProbability }: FearIndexProps) {
+export function FearIndex({ recessionProbability, sectorPerformance }: FearIndexProps) {
   // Convert recession probability to a fear index value (0-100)
   const fearValue = Math.round(recessionProbability * 100)
   const currentFear = fearValue
