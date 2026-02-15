@@ -1,5 +1,6 @@
 // API client for backend market analysis
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+// Use NEXT_PUBLIC_BACKEND_URL (set in Vercel) or fall back to NEXT_PUBLIC_API_URL / localhost
+const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
 
 export interface MarketOutcome {
   [key: string]: number // e.g., { "Yes": 0.65, "No": 0.35 }
