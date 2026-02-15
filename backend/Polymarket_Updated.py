@@ -318,7 +318,7 @@ def run_llm_analysis(market_data):
         {{
         "name": "sector_name",
         "performance": number (YTD return as decimal: e.g., 12.5 for +12.5%),
-        "change": "string (e.g., '+2.1%' or '-0.8%')"
+        "change": "string (must match performance: e.g., '+15.1%' or '-5.1%')"
         }}
     ],
     "risk_indicators": {{
@@ -351,6 +351,9 @@ def run_llm_analysis(market_data):
     - Use realistic YTD performance ranges (-15% to +20% range)
     - Higher recession probability should lead to lower energy and industrial performance
     - Fed policy and rate expectations should influence financial sector performance
+        - CRITICAL: For each sector, the "change" field MUST be formatted EXACTLY as: if performance >= 0, use "+performance%" else use "performance%" 
+    # noqa: F821 (performance is a variable name in the LLM instruction text)
+    - Example: if performance = 15.1, then change = "+15.1%"; if performance = -5.1, then change = "-5.1%"
 
     CONSISTENCY RULES (MANDATORY):
     - If recession_probability > 0.6:

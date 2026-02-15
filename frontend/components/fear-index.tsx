@@ -97,12 +97,14 @@ export function FearIndex({ recessionProbability, sectorPerformance }: FearIndex
           </div>
 
           <div className="space-y-3">
-            {sectorPerformance.map((sector) => (
+            {sectorPerformance.map((sector) => {
+              const formattedChange = sector.performance >= 0 ? `+${Math.abs(sector.performance).toFixed(1)}%` : `${sector.performance.toFixed(1)}%`
+              return (
               <div key={sector.name} className="space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">{sector.name}</span>
                   <span className={`text-sm font-semibold ${sector.performance >= 0 ? "text-chart-3" : "text-chart-1"}`}>
-                    {sector.performance >= 0 ? "+" : ""}{sector.performance}%
+                    {sector.performance >= 0 ? "+" : ""}{Math.abs(sector.performance).toFixed(1)}%
                   </span>
                 </div>
                 <div className="w-full bg-border rounded-full h-2 overflow-hidden">
@@ -113,9 +115,10 @@ export function FearIndex({ recessionProbability, sectorPerformance }: FearIndex
                     }}
                   />
                 </div>
-                <div className="text-xs text-muted-foreground">{sector.change}</div>
+                <div className="text-xs text-muted-foreground">{formattedChange}</div>
               </div>
-            ))}
+            )
+            })}
           </div>
         </div>
       </Card>
