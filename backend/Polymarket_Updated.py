@@ -244,7 +244,7 @@ def fetch_all_market_data():
 def run_llm_analysis(market_data):
     llm = ChatGroq(
         api_key=GROQ_API_KEY,
-        model="llama-3.3-70b-versatile"
+        model="llama-3.1-8b-instant"
     )
     nvidia_confidence = compute_nvidia_confidence(market_data)
 
