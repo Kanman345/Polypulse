@@ -3,10 +3,21 @@ from flask_cors import CORS
 import json
 import sys
 import traceback
+import os
+from dotenv import load_dotenv
+
+# Load environment from .env (if present)
+load_dotenv()
+
 from Polymarket_Updated import fetch_all_market_data, run_llm_analysis, extract_json
 
 app = Flask(__name__)
-CORS(app)
+
+# Frontend URL used for CORS — set FRONTEND_URL in Render/Vercel env vars
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+# Restrict CORS to the frontend origin for API routes
+CORS(app, resources={r"/api/*": {"origins": [FRONTEND_URL]}}, supports_credentials=True)
 
 @app.route('/api/market-analysis', methods=['GET'])
 def get_market_analysis():
@@ -78,4 +89,6 @@ def health_check():
     return jsonify({"status": "ok"}), 200
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    port = int(os.getenv("PORT", 5001))
+    debug = os.getenv("FLASK_DEBUG", "False").lower() in ("1", "true", "yes")
+    app.run(host="0.0.0.0", port=port, debug=debug)
