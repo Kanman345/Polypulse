@@ -403,5 +403,10 @@ if __name__ == "__main__":
         parsed = extract_json(llm_output)
         print("\n=== PARSED OUTPUT ===")
         print(json.dumps(parsed, indent=2))
+        
+        # Save predictions locally
+        from storage import save_predictions_to_storage
+        save_predictions_to_storage(parsed)
+        print("\n✓ Predictions saved to local storage")
     except json.JSONDecodeError:
         print("\n⚠️ LLM output was not valid JSON")
