@@ -19,6 +19,11 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 # Restrict CORS to the frontend origin for API routes
 CORS(app, resources={r"/api/*": {"origins": [FRONTEND_URL]}}, supports_credentials=True)
 
+@app.route('/')
+def home():
+    # Render's health checker loves a 200 OK response
+    return {"status": "success", "message": "Polypulse Backend is live!"}, 200
+
 @app.route('/api/market-analysis', methods=['GET'])
 def get_market_analysis():
     """
