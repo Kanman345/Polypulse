@@ -248,6 +248,17 @@ def run_llm_analysis(market_data):
     )
     nvidia_confidence = compute_nvidia_confidence(market_data)
 
+    # Filter market data to reduce token count
+    filtered_data = [
+        {
+            "event_key": m["event_key"],
+            "event_title": m["event_title"],
+            "market_question": m["market_question"],
+            "outcomes": m["outcomes"]
+        }
+        for m in market_data
+    ]
+
     prompt = f"""
     You are a macro market intelligence engine.
 
@@ -255,7 +266,7 @@ def run_llm_analysis(market_data):
     Your job is to infer the current macro regime and market outlook.
 
     INPUT DATA:
-    {json.dumps(market_data, indent=2)}
+    {json.dumps(filtered_data, indent=2)}
     DERIVED SIGNALS:
     NVIDIA_CONFIDENCE_OVERRIDE = {nvidia_confidence}
 
