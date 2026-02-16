@@ -3,6 +3,7 @@ import json
 import os
 import time
 from langchain_groq import ChatGroq
+from prices import get_stock_price
 
 # ===============================
 # CONFIG
@@ -310,7 +311,7 @@ def run_llm_analysis(market_data):
         "sector": "",
         "reasoning": "",
         "expected_outperformance": "Moderate | High",
-        "price_target": number (estimated target price in USD),
+        "expected_return": number between -0.3 and 1.5 (decimal return, e.g., 0.25 = +25%),
         "target_period": "string (e.g., '3-6 months', '6-12 months', '12+ months')"
         }}
     ],
@@ -344,7 +345,11 @@ def run_llm_analysis(market_data):
     - Consider both upside levels and downside protection
     - Do NOT include a generic equities outlook
     - For each stock recommendation, provide a realistic price_target based on the stock's sector outlook and market conditions
-    - price_target should be realistic (typically 10-50% upside for "Moderate" and 30-100%+ for "High" expected outperformance)
+    - expected_return should represent expected percentage move:
+        0.05 = mild upside
+        0.20 = strong upside
+        0.50+ = extreme bull case
+        negative values allowed
     - target_period must be one of: "1-3 months", "3-6 months", "6-12 months", "12+ months"
     - sector_performance MUST include 5 sectors: Technology, Healthcare, Financials, Industrials, Energy
     - Sector performance values should reflect the market outlook and recession/rate probabilities
@@ -401,6 +406,17 @@ if __name__ == "__main__":
 
     try:
         parsed = extract_json(llm_output)
+        # Convert expected_return to real price targets
+        for stock in parsed.get("top_stocks", []):
+            ticker = stock.get("ticker")
+            expected_return = stock.get("expected_return")
+
+            if ticker and expected_return is not None:
+                current_price = get_stock_price(ticker)
+                if current_price:
+                    stock["price_target"] = round(current_price * (1 + expected_return), 2)
+                else:
+                    stock["price_target"] = None
         print("\n=== PARSED OUTPUT ===")
         print(json.dumps(parsed, indent=2))
         
