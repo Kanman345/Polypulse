@@ -305,7 +305,7 @@ def run_llm_analysis(market_data):
         }}
     }},
     "top_stocks": [
-        {
+        {{
         "name": "company name",
         "ticker": "stock ticker",
         "sector": "sector name",
@@ -313,7 +313,7 @@ def run_llm_analysis(market_data):
         "expected_outperformance": "Moderate | High",
         "price_target": number (future stock price in USD, e.g., 1250),
         "target_period": "1-3 months | 3-6 months | 6-12 months | 12+ months"
-        }
+        }}
         ],
     "sector_performance": [
         {{
