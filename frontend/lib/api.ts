@@ -31,6 +31,7 @@ export interface TopStock {
   expected_outperformance: 'Moderate' | 'High'
   price_target?: number
   target_period?: string
+  confidence?: number
 }
 
 export interface SectorPerformance {

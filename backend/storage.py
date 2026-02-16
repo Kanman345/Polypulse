@@ -1,6 +1,27 @@
 from datetime import datetime
 from db import supabase
 
+def extract_stock_confidence(stock, analysis):
+    """
+    Create confidence score for each stock
+    """
+
+    ticker = stock.get("ticker")
+
+    # Special handling for NVIDIA
+    if ticker == "NVDA":
+        return analysis.get("asset_outlook", {}).get("nvidia", {}).get("confidence", 0.7)
+
+    # Map expected_outperformance → probability
+    mapping = {
+        "High": 0.75,
+        "Moderate": 0.65,
+        "Medium": 0.60,
+        "Low": 0.45
+    }
+
+    return mapping.get(stock.get("expected_outperformance"), 0.5)
+
 def save_predictions_to_storage(analysis):
     """
     Save ONLY the 3 stock recommendations from the LLM output
@@ -16,8 +37,8 @@ def save_predictions_to_storage(analysis):
                 "ticker": stock.get("ticker"),
                 "price_target": stock.get("price_target"),
                 "target_period": stock.get("target_period"),
-                "confidence": stock.get("confidence"),
-                "reasoning": stock.get("reasoning"),
+                "confidence": extract_stock_confidence(stock, analysis),
+                "reasoning": stock.get("reasoning") or "AI macro inference",
                 "saved_at": datetime.utcnow().isoformat(),
                 "actual_price": None,
                 "hit": None

@@ -22,9 +22,10 @@ export function WeeklyRecommendations({ topStocks = [] }: WeeklyRecommendationsP
     <div className="grid gap-4">
       {topStocks.map((stock, idx) => {
         // Determine direction based on expected_outperformance
-        const direction: "long" | "short" = stock.expected_outperformance === "High" ? "long" : "long"
+        const direction: "long" | "short" =
+          stock.expected_outperformance === "High" ? "long" : "short"
         // Extract confidence from expected_outperformance
-        const confidence = stock.expected_outperformance === "High" ? 75 : 60
+        const confidence = Math.round((stock.confidence ?? 0.65) * 100)
         
         return (
           <Card key={idx} className="p-6 border-border hover:border-accent transition-colors">
@@ -79,8 +80,13 @@ export function WeeklyRecommendations({ topStocks = [] }: WeeklyRecommendationsP
                 </div>
                 <div className="w-full bg-muted rounded-full h-2">
                   <div
-                    className="bg-accent rounded-full h-2 transition-all"
-                    style={{ width: `${confidence}%` }}
+                    className={`rounded-full h-2 transition-all ${
+                      confidence > 70
+                        ? "bg-green-500"
+                        : confidence > 50
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
+                    }`}
                   />
                 </div>
               </div>
