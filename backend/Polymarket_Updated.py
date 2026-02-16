@@ -364,8 +364,7 @@ def run_llm_analysis(market_data):
     - Use realistic YTD performance ranges (-15% to +20% range)
     - Higher recession probability should lead to lower energy and industrial performance
     - Fed policy and rate expectations should influence financial sector performance
-        - CRITICAL: For each sector, the "change" field MUST be formatted EXACTLY as: if performance >= 0, use "+performance%" else use "performance%" 
-    # noqa: F821 (performance is a variable name in the LLM instruction text)
+    - CRITICAL: For each sector, the "change" field MUST be formatted EXACTLY as: if performance >= 0, use "+performance%" else use "performance%" 
     - Example: if performance = 15.1, then change = "+15.1%"; if performance = -5.1, then change = "-5.1%"
 
     PRICE TARGET RULES:
