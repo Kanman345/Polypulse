@@ -62,19 +62,35 @@ SESSION = make_session()
 
 import re
 
-def extract_json(text):
-    text = text.strip()
+def extract_json(llm_output):
+    """
+    Extract the FIRST valid JSON object from an LLM response safely.
+    Works even if the model adds text before/after JSON.
+    """
 
-    # Remove fenced code blocks safely
-    if text.startswith("```"):
-        text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
-        text = re.sub(r"\n?```$", "", text)
+    if hasattr(llm_output, "content"):
+        llm_output = llm_output.content
 
-    match = re.search(r"\{[\s\S]*\}", text)
-    if not match:
-        raise ValueError("No JSON object found")
+    if isinstance(llm_output, dict):
+        return llm_output
 
-    return json.loads(match.group(0))
+    if not isinstance(llm_output, str):
+        raise ValueError("Unsupported LLM output format")
+
+    # Find first '{'
+    start = llm_output.find("{")
+    if start == -1:
+        raise ValueError("No JSON object found in LLM output")
+
+    # Incrementally try to parse until valid
+    for i in range(len(llm_output), start, -1):
+        candidate = llm_output[start:i]
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+
+    raise ValueError("Failed to extract valid JSON from LLM output")
 
 def get_event_by_id(event_id):
     try:
