@@ -296,25 +296,25 @@ def run_llm_analysis(market_data):
         "reasoning": ""
         }},
         "bitcoin": {{
-        "bias": "",
+        "bias": "Positive | Neutral | Negative",
         "confidence": number between 0 and 1
         }},
         "us_economy": {{
-        "bias": "",
+        "bias": "Positive | Neutral | Negative",
         "confidence": number between 0 and 1
         }}
     }},
     "top_stocks": [
-        {{
-        "name": "",
-        "ticker": "",
-        "sector": "",
-        "reasoning": "",
+        {
+        "name": "company name",
+        "ticker": "stock ticker",
+        "sector": "sector name",
+        "reasoning": "short explanation",
         "expected_outperformance": "Moderate | High",
-        "expected_return": number between -0.3 and 1.5 (decimal return, e.g., 0.25 = +25%),
-        "target_period": "string (e.g., '3-6 months', '6-12 months', '12+ months')"
-        }}
-    ],
+        "price_target": number (future stock price in USD, e.g., 1250),
+        "target_period": "1-3 months | 3-6 months | 6-12 months | 12+ months"
+        }
+        ],
     "sector_performance": [
         {{
         "name": "sector_name",
@@ -328,6 +328,19 @@ def run_llm_analysis(market_data):
         "upside_probability": integer between 0 and 100
     }}
     }}
+
+    CRITICAL SCHEMA REQUIREMENT:
+    Every stock in "top_stocks" MUST include:
+    - ticker
+    - name
+    - sector
+    - reasoning
+    - expected_outperformance
+    - price_target (MANDATORY NUMBER, not percentage)
+    - target_period
+
+    If price_target is missing OR not a number → output is INVALID.
+    Never replace price_target with expected_return.
 
     RULES:
     - Base conclusions ONLY on the input probabilities
@@ -345,11 +358,6 @@ def run_llm_analysis(market_data):
     - Consider both upside levels and downside protection
     - Do NOT include a generic equities outlook
     - For each stock recommendation, provide a realistic price_target based on the stock's sector outlook and market conditions
-    - expected_return should represent expected percentage move:
-        0.05 = mild upside
-        0.20 = strong upside
-        0.50+ = extreme bull case
-        negative values allowed
     - target_period must be one of: "1-3 months", "3-6 months", "6-12 months", "12+ months"
     - sector_performance MUST include 5 sectors: Technology, Healthcare, Financials, Industrials, Energy
     - Sector performance values should reflect the market outlook and recession/rate probabilities
@@ -359,6 +367,12 @@ def run_llm_analysis(market_data):
         - CRITICAL: For each sector, the "change" field MUST be formatted EXACTLY as: if performance >= 0, use "+performance%" else use "performance%" 
     # noqa: F821 (performance is a variable name in the LLM instruction text)
     - Example: if performance = 15.1, then change = "+15.1%"; if performance = -5.1, then change = "-5.1%"
+
+    PRICE TARGET RULES:
+    - price_target MUST be a realistic future stock price (not percentage)
+    - price_target must be greater than current price if outlook is bullish
+    - NEVER output expected_return
+    - NEVER output percentages for stocks
 
     CONSISTENCY RULES (MANDATORY):
     - If recession_probability > 0.6:
