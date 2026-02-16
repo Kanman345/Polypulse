@@ -275,6 +275,17 @@ def run_llm_analysis(market_data):
         }
         for m in market_data
     ]
+    from market_prices import get_current_price
+
+    WATCHLIST = ["AAPL","MSFT","NVDA","AMZN","GOOGL","META","TSLA","JPM","V","JNJ"]
+
+    price_map = {}
+    for t in WATCHLIST:
+        p = get_current_price(t)
+        if p:
+            price_map[t] = round(p,2)
+
+    price_context = json.dumps(price_map, indent=2)
 
     prompt = f"""
     You are a macro market intelligence engine.
@@ -286,6 +297,12 @@ def run_llm_analysis(market_data):
     {json.dumps(filtered_data, indent=2)}
     DERIVED SIGNALS:
     NVIDIA_CONFIDENCE_OVERRIDE = {nvidia_confidence}
+
+    CURRENT MARKET PRICES (USD):
+    These are real market prices at the time of prediction.
+    You MUST use these when calculating price targets.
+
+    {price_context}
 
 
     OUTPUT REQUIREMENTS:
@@ -342,7 +359,7 @@ def run_llm_analysis(market_data):
         "reasoning": "Example reasoning",
         "expected_outperformance": "High",
         "price_target": 1250,
-        "target_period": "6-12 months"
+        "target_period": "3 months"
         }}
     ],
     "sector_performance": [
@@ -388,7 +405,8 @@ def run_llm_analysis(market_data):
     - Consider both upside levels and downside protection
     - Do NOT include a generic equities outlook
     - For each stock recommendation, provide a realistic price_target based on the stock's sector outlook and market conditions
-    - target_period must be one of: "1-3 months", "3-6 months", "6-12 months", "12+ months"
+    - target_period MUST be exactly "3 months"
+        - The recommendation represents a 3-month forward price expectation
     - sector_performance MUST include 5 sectors: Technology, Healthcare, Financials, Industrials, Energy
     - Sector performance values should reflect the market outlook and recession/rate probabilities
     - Use realistic YTD performance ranges (-15% to +20% range)
@@ -402,6 +420,20 @@ def run_llm_analysis(market_data):
     - price_target must be greater than current price if outlook is bullish
     - NEVER output expected_return
     - NEVER output percentages for stocks
+    REALISM CONSTRAINT:
+    - price_target must be between +3% and +40% above current price
+    - Do not produce extreme multi-bagger predictions
+    - Assume institutional research realism
+    - The prediction should resemble a professional equity research target
+
+    DIRECTIONAL CONSISTENCY (CRITICAL):
+    For each recommended stock:
+    If expected_outperformance = "High"
+    → price_target MUST be at least 8% ABOVE the current price
+    If expected_outperformance = "Moderate"
+    → price_target MUST be at least 3% ABOVE the current price
+    Never recommend a stock with a target price below its current price.
+    If violated, the output is invalid.
 
     CONSISTENCY RULES (MANDATORY):
     - If recession_probability > 0.6:
@@ -415,12 +447,21 @@ def run_llm_analysis(market_data):
     - Financials performance MUST reflect rate environment
     - If volatility is "Elevated":
     - market_sentiment score MUST be ≤ 60
-    - expected_outperformance MUST be exactly "Moderate" or "High"
+    - expected_outperformance MUST be exactly one of:
+        - "Moderate"
+        - "High"
+        (No other words allowed)
 
     Sentiment scoring guidance:
     - 0–30 = Bearish
     - 31–60 = Neutral
     - 61–100 = Bullish
+
+    WEEKLY RECOMMENDATION RULE:
+    This output will be frozen and tracked for performance.
+    Do NOT optimize for excitement.
+    Optimize for realistic accuracy.
+    Avoid speculative or lottery-like targets.
 
     Return ONLY valid JSON.
     """

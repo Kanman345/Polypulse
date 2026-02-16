@@ -3,9 +3,15 @@ from flask_cors import CORS
 import traceback
 import os
 from dotenv import load_dotenv
+load_dotenv()
+from prediction_cycle import get_existing_weekly_predictions, create_new_batch_id, get_current_week_window
+
+from price_validator import validate_price_target
+from storage import save_predictions_to_storage
+
 
 # Load environment
-load_dotenv()
+
 
 app = Flask(__name__)
 
@@ -21,9 +27,6 @@ def run_analysis_pipeline():
     llm_output = run_llm_analysis(market_data)
     analysis = extract_json(llm_output)
 
-    # Lazy import storage (VERY IMPORTANT)
-    from storage import save_predictions_to_storage
-    save_predictions_to_storage(analysis)
 
     return market_data, analysis
 
@@ -36,22 +39,31 @@ def home():
 @app.route('/api/market-analysis', methods=['GET'])
 def get_market_analysis():
     try:
+        # Always run fresh macro analysis
         market_data, analysis = run_analysis_pipeline()
+
+        # Check if weekly picks already exist
+        existing = get_existing_weekly_predictions()
+
+        if existing:
+            print("Using cached weekly recommendations")
+            analysis["top_stocks"] = existing
+            cached = True
+        else:
+            print("Saving new weekly recommendations")
+            save_predictions_to_storage(analysis)
+            cached = False
 
         return jsonify({
             "success": True,
-            "market_data": market_data,
             "analysis": analysis,
-            "timestamp": None
+            "market_data": market_data,
+            "cached_recommendations": cached
         })
 
     except Exception as e:
-        print(f"Error: {e}")
         traceback.print_exc()
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route('/api/raw-market-data', methods=['GET'])
