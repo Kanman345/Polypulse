@@ -1,48 +1,49 @@
-import json
-import os
 from datetime import datetime
+from db import supabase
 
-PREDICTIONS_FILE = "predictions.json"
+def save_predictions_to_storage(analysis):
+    """
+    Save ONLY the 3 stock recommendations from the LLM output
+    """
 
-def save_predictions_to_storage(llm_output):
-    """Save LLM stock recommendations to local storage"""
-    predictions = load_predictions()
-    
-    for stock in llm_output.get("top_stocks", []):
-        entry = {
-            "id": int(datetime.now().timestamp() * 1000),
-            "ticker": stock.get("ticker"),
-            "priceTarget": stock.get("price_target"),
-            "targetPeriod": stock.get("target_period"),
-            "confidence": stock.get("confidence"),
-            "reasoning": stock.get("reasoning"),
-            "savedAt": datetime.now().isoformat(),
-            "actualPrice": None,
-            "hit": None
-        }
-        predictions.append(entry)
-    
-    with open(PREDICTIONS_FILE, "w") as f:
-        json.dump(predictions, f, indent=2)
+    if not analysis or "top_stocks" not in analysis:
+        return
 
-def load_predictions():
-    """Load all predictions from storage"""
-    if not os.path.exists(PREDICTIONS_FILE):
-        return []
-    try:
-        with open(PREDICTIONS_FILE, "r") as f:
-            return json.load(f)
-    except json.JSONDecodeError:
-        return []
+    for stock in analysis["top_stocks"]:
+        try:
+            supabase.table("predictions").insert({
+                "id": int(datetime.now().timestamp() * 1000),
+                "ticker": stock.get("ticker"),
+                "price_target": stock.get("price_target"),
+                "target_period": stock.get("target_period"),
+                "confidence": stock.get("confidence"),
+                "reasoning": stock.get("reasoning"),
+                "saved_at": datetime.utcnow().isoformat(),
+                "actual_price": None,
+                "hit": None
+            }).execute()
+
+        except Exception as e:
+            print("Failed to save prediction:", e)
+
 
 def update_prediction_price(pred_id, actual_price):
-    """Update prediction with actual price and hit status"""
-    predictions = load_predictions()
-    
-    for pred in predictions:
-        if pred["id"] == pred_id:
-            pred["actualPrice"] = actual_price
-            pred["hit"] = actual_price >= pred["priceTarget"]
-    
-    with open(PREDICTIONS_FILE, "w") as f:
-        json.dump(predictions, f, indent=2)
+    """
+    After time passes, update whether prediction was correct
+    """
+
+    prediction = supabase.table("predictions") \
+        .select("price_target") \
+        .eq("id", pred_id) \
+        .execute()
+
+    if prediction.data:
+        price_target = prediction.data[0]["price_target"]
+
+        supabase.table("predictions") \
+            .update({
+                "actual_price": actual_price,
+                "hit": actual_price >= price_target
+            }) \
+            .eq("id", pred_id) \
+            .execute()

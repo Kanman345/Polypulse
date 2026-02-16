@@ -5,6 +5,7 @@ import sys
 import traceback
 import os
 from dotenv import load_dotenv
+from storage import save_predictions_to_storage
 
 # Load environment from .env (if present)
 load_dotenv()
@@ -45,6 +46,8 @@ def get_market_analysis():
         except:
             # If extraction fails, try direct JSON parse
             analysis = json.loads(llm_output)
+
+        save_predictions_to_storage(analysis)
         
         # Return combined data
         return jsonify({
