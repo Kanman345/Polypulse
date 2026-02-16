@@ -39,7 +39,7 @@ def home():
 @app.route('/api/market-analysis', methods=['GET'])
 def get_market_analysis():
     try:
-        # Always run fresh macro analysis
+        # Always run fresh macro analysis (for charts & macro signals)
         market_data, analysis = run_analysis_pipeline()
 
         # Check if weekly picks already exist
@@ -47,8 +47,25 @@ def get_market_analysis():
 
         if existing:
             print("Using cached weekly recommendations")
-            analysis["top_stocks"] = existing
+
+            # Convert DB rows -> API format
+            top_stocks = []
+            for row in existing:
+                top_stocks.append({
+                    "ticker": row["ticker"],
+                    "name": row["ticker"],  # frontend maps to company name
+                    "sector": "Macro AI Selection",
+                    "reasoning": row["reasoning"],
+                    "price_target": float(row["price_target"]),
+                    "current_price": float(row["start_price"]),  # KEY FIX
+                    "confidence": float(row["confidence"]),
+                    "target_period": row["target_period"],
+                    "expected_outperformance": "High" if row["price_target"] > row["start_price"] else "Moderate"
+                })
+
+            analysis["top_stocks"] = top_stocks
             cached = True
+
         else:
             print("Saving new weekly recommendations")
             save_predictions_to_storage(analysis)

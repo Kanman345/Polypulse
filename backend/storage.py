@@ -68,6 +68,7 @@ def save_predictions_to_storage(analysis):
         supabase.table("predictions").insert({
             "ticker": ticker,
             "price_target": safe_target,
+            "start_price": current_price,
             "target_period": "3 months",
             "confidence": extract_stock_confidence(stock, analysis),
             "reasoning": stock.get("reasoning", "Macro AI inference"),
