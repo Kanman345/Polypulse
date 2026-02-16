@@ -287,7 +287,21 @@ def run_llm_analysis(market_data):
     DERIVED SIGNALS:
     NVIDIA_CONFIDENCE_OVERRIDE = {nvidia_confidence}
 
+
     OUTPUT REQUIREMENTS:
+    You are a JSON API. You do not write explanations, markdown, or code.
+
+    CRITICAL:
+    - Output MUST be pure JSON
+    - No backticks
+    - No ```json
+    - No ```python
+    - No text before or after JSON
+    - No functions
+    - No comments
+    - No variable names
+    - No pseudocode
+    - If you output anything except JSON, the system will crash
     Return ONE valid JSON object with the following structure:
 
     {{
@@ -322,15 +336,15 @@ def run_llm_analysis(market_data):
     }},
     "top_stocks": [
         {{
-        "name": "company name",
-        "ticker": "stock ticker",
-        "sector": "sector name",
-        "reasoning": "short explanation",
-        "expected_outperformance": "Moderate | High",
-        "price_target": number (future stock price in USD, e.g., 1250),
-        "target_period": "1-3 months | 3-6 months | 6-12 months | 12+ months"
+        "name": "Example Corp",
+        "ticker": "EXM",
+        "sector": "Technology",
+        "reasoning": "Example reasoning",
+        "expected_outperformance": "High",
+        "price_target": 1250,
+        "target_period": "6-12 months"
         }}
-        ],
+    ],
     "sector_performance": [
         {{
         "name": "sector_name",
@@ -401,6 +415,7 @@ def run_llm_analysis(market_data):
     - Financials performance MUST reflect rate environment
     - If volatility is "Elevated":
     - market_sentiment score MUST be ≤ 60
+    - expected_outperformance MUST be exactly "Moderate" or "High"
 
     Sentiment scoring guidance:
     - 0–30 = Bearish
