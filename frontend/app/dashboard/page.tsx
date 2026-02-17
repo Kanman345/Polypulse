@@ -8,12 +8,13 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useMarketAnalysisContext } from "@/lib/context"
 import { SentimentGauge } from "@/components/sentiment-gauge"
-import { StatusBadges } from "@/components/status-badges"
 import { FearIndex } from "@/components/fear-index"
 import { MarketRegimeSection } from "@/components/market-regime-section"
 import { CrowdSentimentSection } from "@/components/crowd-sentiment-section"
 import { AssetOutlookSection } from "@/components/asset-outlook-section"
 import { RiskStressSection } from "@/components/risk-stress-section"
+import { getInvestmentDecision } from "@/lib/investmentDecision"
+
 
 export default function MarketPulseDashboard() {
   const [theme, setTheme] = useState<"dark" | "light">("dark")
@@ -34,6 +35,8 @@ export default function MarketPulseDashboard() {
     clearCache()
     fetchData()
   }
+
+  const decision = data ? getInvestmentDecision(data.analysis) : null
 
   return (
     <div className={`min-h-screen ${theme === "dark" ? "dark" : ""}`}>
@@ -117,7 +120,35 @@ export default function MarketPulseDashboard() {
               <Card className="p-6">
                 <div className="grid lg:grid-cols-[1fr_auto] gap-8 items-center">
                   <SentimentGauge value={data.analysis.market_sentiment.score} />
-                  <StatusBadges regime={data.analysis.market_regime} />
+
+                  {decision && (
+                    <div className={`rounded-xl border p-6 w-[260px] transition-all
+                      ${decision.color === "green"
+                        ? "bg-green-500/10 border-green-500/40"
+                        : decision.color === "yellow"
+                        ? "bg-yellow-500/10 border-yellow-500/40"
+                        : "bg-red-500/10 border-red-500/40"
+                      }`}>
+
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Recommended Action
+                      </p>
+
+                      <h2 className={`text-2xl font-bold mt-2
+                        ${decision.color === "green"
+                          ? "text-green-400"
+                          : decision.color === "yellow"
+                          ? "text-yellow-400"
+                          : "text-red-400"
+                        }`}>
+                        {decision.action}
+                      </h2>
+
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {decision.description}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </Card>
 
