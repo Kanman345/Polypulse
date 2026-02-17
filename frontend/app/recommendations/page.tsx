@@ -57,7 +57,7 @@ export default function RecommendationsPage() {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Recommendations
+                  Weekly Recommendations
                 </Link>
               </nav>
             </div>
@@ -94,7 +94,10 @@ export default function RecommendationsPage() {
                 <h2 className="text-3xl font-bold tracking-tight">Top Stock Recommendations</h2>
                 <p className="text-muted-foreground mt-1">AI-powered stock recommendations based on market analysis</p>
               </div>
-              <WeeklyRecommendations topStocks={data.analysis.top_stocks} />
+              <WeeklyRecommendations
+                topStocks={data.analysis.top_stocks}
+                isCached={data.cached_recommendations}
+              />
             </div>
           )}
 

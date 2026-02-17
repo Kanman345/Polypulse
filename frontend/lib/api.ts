@@ -32,6 +32,7 @@ export interface TopStock {
   price_target?: number
   target_period?: string
   confidence?: number
+  current_price: number
 }
 
 export interface SectorPerformance {
@@ -75,6 +76,7 @@ export interface AnalysisResponse {
   analysis: MarketAnalysis
   timestamp?: string
   error?: string
+  cached_recommendations?: boolean
 }
 
 export async function fetchMarketAnalysis(): Promise<AnalysisResponse> {
