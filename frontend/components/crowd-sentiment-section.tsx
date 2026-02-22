@@ -1,8 +1,6 @@
 "use client"
 
-import { useState } from "react"
 import { Card } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MarketData } from "@/lib/api"
 
 interface CrowdSentimentSectionProps {
@@ -14,98 +12,137 @@ interface CrowdSentimentSectionProps {
   }
 }
 
+function simplifyFedLabel(question: string) {
+  if (question.includes("50")) return "Cut 50bps"
+  if (question.includes("25 bps") && question.includes("decrease")) return "Cut 25bps"
+  if (question.toLowerCase().includes("no change")) return "No Change"
+  if (question.includes("increase")) return "Hike 25bps+"
+  return "Other"
+}
+
 export function CrowdSentimentSection({
-    marketData,
-    crowdSignals
-  }: CrowdSentimentSectionProps) {
-  const [selectedIndex, setSelectedIndex] = useState(0)
+  marketData,
+  crowdSignals,
+}: CrowdSentimentSectionProps) {
 
-  const uniqueMarkets = Array.from(
-    new Map(marketData.map((m) => [m.market_question, m])).values()
-  ).slice(0, 3)
+  // 🔹 Group Fed March decision markets together
+  const fedMarkets = marketData.filter(
+    (m) => m.event_key === "fed_decision_march"
+  )
 
-  const selectedMarket = uniqueMarkets[selectedIndex]
-
-  if (!selectedMarket) {
+  if (!fedMarkets || fedMarkets.length === 0) {
     return (
       <div className="space-y-4">
         <h2 className="text-2xl font-bold">Crowd Sentiment</h2>
         <Card className="p-6">
-          <p className="text-muted-foreground">No market data available</p>
+          <p className="text-muted-foreground">
+            No crowd market data available
+          </p>
         </Card>
       </div>
     )
   }
 
-  const outcomes = Object.entries(selectedMarket.outcomes).map(([label, prob]) => ({
-    label,
-    percentage: Math.round(prob * 100),
-  }))
+  // 🔹 Build structured probability distribution
+  const distribution = fedMarkets.map((m) => {
+    const yesProbability = m.outcomes["Yes"] ?? 0
+    return {
+      label: simplifyFedLabel(m.market_question),
+      percentage: Math.round(yesProbability * 100),
+    }
+  })
+
+  // 🔹 Sort highest probability first
+  distribution.sort((a, b) => b.percentage - a.percentage)
+
+  const dominant = distribution[0]
+
+  const totalVolume = fedMarkets.reduce(
+    (sum, m) => sum + Number(m.volume),
+    0
+  )
+
+  const resolutionDate = fedMarkets[0].end_date
 
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Crowd Sentiment</h2>
 
-      <Card className="p-6 space-y-6">
-        {/* Tabs */}
-        <Tabs
-          value={selectedIndex.toString()}
-          onValueChange={(v) => setSelectedIndex(parseInt(v))}
-        >
-          <TabsList className="mb-4">
-            {uniqueMarkets.map((market, idx) => (
-              <TabsTrigger key={idx} value={idx.toString()} className="text-xs">
-                {market.market_question.slice(0, 28)}…
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+      <Card className="p-6 space-y-8">
 
-        {/* Question */}
+        {/* Dominant Signal */}
         <div>
-          <h3 className="text-lg font-semibold mb-4">
-            {selectedMarket.market_question}
+          <p className="text-xs text-muted-foreground mb-2">
+            Fed March Decision — Market Implied Outcome
+          </p>
+          <h3 className="text-2xl font-bold text-foreground">
+            {dominant.label}
+            <span className="text-emerald-400 ml-3">
+              {dominant.percentage}%
+            </span>
           </h3>
-
-          {/* Probability Bars */}
-          <div className="space-y-4">
-            {outcomes.map((o, idx) => (
-              <div key={idx}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>{o.label}</span>
-                  <span className="font-semibold">{o.percentage}%</span>
-                </div>
-                <div className="w-full bg-secondary rounded-full h-3">
-                  <div
-                    className={`h-3 rounded-full ${
-                      o.percentage > 50 ? "bg-green-500" : "bg-red-500"
-                    }`}
-                    style={{ width: `${o.percentage}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
-        {/* Market Meta (Compressed) */}
-        <div className="flex flex-wrap gap-6 text-sm text-muted-foreground pt-4 border-t border-border">
+        {/* Distribution Bars */}
+        <div className="space-y-5">
+          {distribution.map((item, idx) => (
+            <div key={idx}>
+              <div className="flex justify-between text-sm mb-1">
+                <span>{item.label}</span>
+                <span className="font-semibold">
+                  {item.percentage}%
+                </span>
+              </div>
+
+              <div className="w-full bg-muted/40 rounded-full h-4 overflow-hidden">
+                <div
+                  className={`h-4 rounded-full transition-all duration-700 ${
+                    item.percentage > 60
+                      ? "bg-gradient-to-r from-green-500 to-emerald-400"
+                      : item.percentage > 40
+                      ? "bg-yellow-400"
+                      : "bg-red-500"
+                  }`}
+                  style={{ width: `${item.percentage}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Meta Row */}
+        <div className="flex flex-wrap gap-10 text-sm text-muted-foreground pt-6 border-t border-border">
           <div>
-            <span className="block text-xs">Volume</span>
+            <span className="block text-xs">Total Volume</span>
             <span className="font-semibold text-foreground">
-              ${Number(selectedMarket.volume).toLocaleString()}
+              ${totalVolume.toLocaleString()}
             </span>
           </div>
 
-          {selectedMarket.end_date && (
+          {resolutionDate && (
             <div>
               <span className="block text-xs">Resolves</span>
               <span className="font-semibold text-foreground">
-                {new Date(selectedMarket.end_date).toLocaleDateString()}
+                {new Date(resolutionDate).toLocaleDateString()}
               </span>
             </div>
           )}
+
+          <div>
+            <span className="block text-xs">Fed Policy Bias</span>
+            <span className="font-semibold text-foreground">
+              {crowdSignals.fed_policy_bias}
+            </span>
+          </div>
+
+          <div>
+            <span className="block text-xs">Recession Odds</span>
+            <span className="font-semibold text-foreground">
+              {Math.round(crowdSignals.recession_probability * 100)}%
+            </span>
+          </div>
         </div>
+
       </Card>
     </div>
   )
