@@ -1,6 +1,7 @@
 from datetime import datetime
 from db import supabase
 from Polymarket_Updated import fetch_all_market_data, run_llm_analysis, extract_json
+from prediction_tracker import update_all_prediction_progress
 
 def run_full_analysis():
     print("Running scheduled 6-hour analysis...")
@@ -14,6 +15,11 @@ def run_full_analysis():
         "market_data": market_data,
         "created_at": datetime.utcnow().isoformat()
     }).execute()
+
+    try:
+        update_all_prediction_progress()
+    except Exception as e:
+        print("Tracker update failed:", e)
 
     print("Analysis saved successfully.")
 

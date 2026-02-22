@@ -43,6 +43,11 @@ def save_predictions_to_storage(analysis):
     batch_id = create_new_batch_id()
     start, end = get_current_week_window()
 
+    supabase.table("predictions") \
+        .update({"is_active": False}) \
+        .eq("is_active", True) \
+        .execute()
+
     for stock in analysis["top_stocks"]:
 
         ticker = stock["ticker"]
@@ -76,7 +81,8 @@ def save_predictions_to_storage(analysis):
             "generated_at": datetime.utcnow().isoformat(),
             "cycle_start": str(start),
             "cycle_end": str(end),
-            "batch_id": batch_id
+            "batch_id": batch_id,
+            "is_active": True
         }).execute()
 
     print("Saved weekly predictions:", batch_id)

@@ -141,6 +141,22 @@ def run_scheduled_analysis():
         traceback.print_exc()
         return {"error": str(e)}, 500
     
+@app.route('/api/prediction-tracker', methods=['GET'])
+def prediction_tracker():
+    try:
+        rows = supabase.table("predictions") \
+            .select("*") \
+            .eq("is_active", False) \
+            .order("generated_at", desc=True) \
+            .execute()
+
+        return jsonify({
+            "success": True,
+            "predictions": rows.data
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    
 if __name__ == '__main__':
     port = int(os.getenv("PORT", 5001))
     debug = os.getenv("FLASK_DEBUG", "False").lower() in ("1", "true", "yes")
