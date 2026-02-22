@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { TrendingUp, TrendingDown } from "lucide-react"
 import { COMPANY_NAMES } from "@/lib/companyNames"
 import { TopStock } from "@/lib/api"
+import { PriceProjection } from "@/components/price-projection"
 
 interface WeeklyRecommendationsProps {
   topStocks?: TopStock[]
@@ -104,6 +105,16 @@ return (
                     <p className="text-lg font-bold text-green-400">
                       ${stock.price_target.toFixed(2)}
                     </p>
+                  </div>
+                )}
+
+                {/* Projection Graph */}
+                {stock.price_target && stock.current_price && (
+                  <div className="pt-2">
+                    <PriceProjection
+                      startPrice={Number(stock.current_price)}
+                      targetPrice={Number(stock.price_target)}
+                    />
                   </div>
                 )}
 

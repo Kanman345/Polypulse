@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 from prediction_cycle import get_existing_weekly_predictions, create_new_batch_id, get_current_week_window
+import supabase
 
 from price_validator import validate_price_target
 from storage import save_predictions_to_storage
@@ -39,36 +40,53 @@ def home():
 @app.route('/api/market-analysis', methods=['GET'])
 def get_market_analysis():
     try:
-        # Always run fresh macro analysis (for charts & macro signals)
-        market_data, analysis = run_analysis_pipeline()
+        # 1️⃣ Fetch latest cached macro analysis
+        cache_res = supabase.table("market_analysis_cache") \
+            .select("*") \
+            .order("created_at", desc=True) \
+            .limit(1) \
+            .execute()
 
-        # Check if weekly picks already exist
+        if not cache_res.data:
+            return jsonify({
+                "success": False,
+                "error": "No cached analysis available"
+            }), 500
+
+        latest = cache_res.data[0]
+        analysis = latest["analysis"]
+        market_data = latest["market_data"]
+
+        # 2️⃣ Fetch weekly stock recommendations (already stored separately)
         existing = get_existing_weekly_predictions()
 
         if existing:
             print("Using cached weekly recommendations")
 
-            # Convert DB rows -> API format
             top_stocks = []
             for row in existing:
                 top_stocks.append({
                     "ticker": row["ticker"],
-                    "name": row["ticker"],  # frontend maps to company name
+                    "name": row["ticker"],
                     "sector": "Macro AI Selection",
                     "reasoning": row["reasoning"],
                     "price_target": float(row["price_target"]),
-                    "current_price": float(row["start_price"]),  # KEY FIX
+                    "current_price": float(row["start_price"]),
                     "confidence": float(row["confidence"]),
                     "target_period": row["target_period"],
-                    "expected_outperformance": "High" if row["price_target"] > row["start_price"] else "Moderate"
+                    "expected_outperformance": (
+                        "High"
+                        if float(row["price_target"]) > float(row["start_price"])
+                        else "Moderate"
+                    )
                 })
 
             analysis["top_stocks"] = top_stocks
             cached = True
 
         else:
-            print("Saving new weekly recommendations")
-            save_predictions_to_storage(analysis)
+            # No weekly picks found (shouldn't happen after cron runs)
+            analysis["top_stocks"] = []
             cached = False
 
         return jsonify({
@@ -80,7 +98,10 @@ def get_market_analysis():
 
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 
 @app.route('/api/raw-market-data', methods=['GET'])
@@ -110,6 +131,16 @@ def health_check():
     return jsonify({"status": "ok"}), 200
 
 
+@app.route('/api/run-scheduled-analysis', methods=['GET'])
+def run_scheduled_analysis():
+    try:
+        from analysis_job import run_full_analysis
+        run_full_analysis()
+        return {"status": "analysis updated"}
+    except Exception as e:
+        traceback.print_exc()
+        return {"error": str(e)}, 500
+    
 if __name__ == '__main__':
     port = int(os.getenv("PORT", 5001))
     debug = os.getenv("FLASK_DEBUG", "False").lower() in ("1", "true", "yes")
