@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 from prediction_cycle import get_existing_weekly_predictions, create_new_batch_id, get_current_week_window
-import supabase
+from db import supabase
 
 from price_validator import validate_price_target
 from storage import save_predictions_to_storage
