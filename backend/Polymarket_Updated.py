@@ -365,7 +365,7 @@ def run_llm_analysis(market_data):
     "sector_performance": [
         {{
         "name": "sector_name",
-        "performance": number (YTD return as decimal: e.g., 12.5 for +12.5%),
+        "performance": number (YTD return as percentage value, e.g., 12.5 means +12.5%, -4.5 means -4.5%),
         "change": "string (must match performance: e.g., '+15.1%' or '-5.1%')"
         }}
     ],
