@@ -7,9 +7,17 @@ import { MarketData } from "@/lib/api"
 
 interface CrowdSentimentSectionProps {
   marketData: MarketData[]
+  crowdSignals: {
+    fed_policy_bias: string
+    recession_probability: number
+    rate_cut_bias: string
+  }
 }
 
-export function CrowdSentimentSection({ marketData }: CrowdSentimentSectionProps) {
+export function CrowdSentimentSection({
+    marketData,
+    crowdSignals
+  }: CrowdSentimentSectionProps) {
   const [selectedIndex, setSelectedIndex] = useState(0)
 
   const uniqueMarkets = Array.from(
