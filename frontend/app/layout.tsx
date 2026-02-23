@@ -12,6 +12,11 @@ export const metadata: Metadata = {
   title: "PolyPulse - Financial Analytics Dashboard",
   description: "Visual analytics dashboard for market sentiment, crowd predictions, and weekly recommendations",
   generator: "v0.app",
+
+  verification: {
+    google: "OQNwUaDxxIKTzUQmOV7_SdCJ0Cu6Phxz5YxJ9MMDxY8",
+  },
+
   icons: {
     icon: [
       {
