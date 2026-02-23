@@ -16,6 +16,9 @@ def run_full_analysis():
         "created_at": datetime.utcnow().isoformat()
     }).execute()
 
+    from storage import save_predictions_to_storage
+    save_predictions_to_storage(analysis)
+    
     try:
         update_all_prediction_progress()
     except Exception as e:
