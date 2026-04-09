@@ -17,5 +17,7 @@ export const COMPANY_NAMES: Record<string, string> = {
   NFLX: "Netflix",
   PFE: "Pfizer",
   KO: "Coca-Cola",
-  CSCO: "Cisco Systems",    
+  CSCO: "Cisco Systems",
+  GLD: "Gold",
+  BTC: "Bitcoin",
 }
