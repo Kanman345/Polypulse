@@ -40,60 +40,67 @@ def home():
 @app.route('/api/market-analysis', methods=['GET'])
 def get_market_analysis():
     try:
-        # 1️⃣ Fetch latest cached macro analysis
+        # 1️⃣ Fetch active predictions as recommendations
+        predictions_res = supabase.table("predictions") \
+            .select("*") \
+            .eq("is_active", True) \
+            .order("created_at", desc=True) \
+            .execute()
+
+        top_stocks = []
+        if predictions_res.data:
+            for row in predictions_res.data:
+                top_stocks.append({
+                    "ticker": row["ticker"],
+                    "name": row.get("asset_name", row["ticker"]),
+                    "sector": "Market Analysis",
+                    "reasoning": row.get("reasoning", ""),
+                    "price_target": float(row["price_target"]),
+                    "current_price": float(row["current_price"]),
+                    "confidence": float(row["confidence"]),
+                    "target_period": row.get("target_period", "3 months"),
+                    "expected_outperformance": (
+                        "High"
+                        if float(row["price_target"]) > float(row["current_price"])
+                        else "Moderate"
+                    )
+                })
+
+        # 2️⃣ Try to fetch cached macro analysis if available
         cache_res = supabase.table("market_analysis_cache") \
             .select("*") \
             .order("created_at", desc=True) \
             .limit(1) \
             .execute()
 
-        if not cache_res.data:
-            return jsonify({
-                "success": False,
-                "error": "No cached analysis available"
-            }), 500
-
-        latest = cache_res.data[0]
-        analysis = latest["analysis"]
-        market_data = latest["market_data"]
-
-        # 2️⃣ Fetch weekly stock recommendations (already stored separately)
-        existing = get_existing_weekly_predictions()
-
-        if existing:
-            print("Using cached weekly recommendations")
-
-            top_stocks = []
-            for row in existing:
-                top_stocks.append({
-                    "ticker": row["ticker"],
-                    "name": row["ticker"],
-                    "sector": "Macro AI Selection",
-                    "reasoning": row["reasoning"],
-                    "price_target": float(row["price_target"]),
-                    "current_price": float(row["start_price"]),
-                    "confidence": float(row["confidence"]),
-                    "target_period": row["target_period"],
-                    "expected_outperformance": (
-                        "High"
-                        if float(row["price_target"]) > float(row["start_price"])
-                        else "Moderate"
-                    )
-                })
-
-            analysis["top_stocks"] = top_stocks
-            cached = True
-
+        if cache_res.data:
+            latest = cache_res.data[0]
+            analysis = latest.get("analysis", {})
+            market_data = latest.get("market_data", [])
         else:
-            # No weekly picks found (shouldn't happen after cron runs)
-            analysis["top_stocks"] = []
-            cached = False
+            # Fallback if no cache available
+            analysis = {
+                "market_sentiment": {"label": "Neutral", "score": 0.5},
+                "market_regime": {
+                    "risk": "Transitional",
+                    "liquidity": "Neutral",
+                    "volatility": "Normal"
+                },
+                "crowd_signals": {},
+                "asset_outlook": {},
+                "sector_performance": [],
+                "risk_indicators": {}
+            }
+            market_data = []
+
+        # Include active predictions as top_stocks
+        analysis["top_stocks"] = top_stocks
 
         return jsonify({
             "success": True,
             "analysis": analysis,
             "market_data": market_data,
-            "cached_recommendations": cached
+            "cached_recommendations": bool(cache_res.data)
         })
 
     except Exception as e:
@@ -144,17 +151,19 @@ def run_scheduled_analysis():
 @app.route('/api/prediction-tracker', methods=['GET'])
 def prediction_tracker():
     try:
-        rows = supabase.table("predictions") \
+        # Fetch archived/completed predictions from tracker table
+        rows = supabase.table("prediction_tracker") \
             .select("*") \
-            .eq("is_active", False) \
-            .order("generated_at", desc=True) \
+            .order("archived_at", desc=True) \
             .execute()
 
         return jsonify({
             "success": True,
-            "predictions": rows.data
+            "predictions": rows.data if rows.data else []
         })
     except Exception as e:
+        print(f"Error fetching prediction tracker: {e}")
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
     
 if __name__ == '__main__':

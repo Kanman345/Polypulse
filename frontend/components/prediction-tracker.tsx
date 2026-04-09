@@ -7,19 +7,12 @@ interface Prediction {
   id: number
   ticker: string
   asset_name?: string
-  start_price?: number
-  current_price?: number
-  last_price?: number
+  current_price: number
   price_target: number
-  progress?: number
-  status?: string
-  hit?: boolean | null
-  direction?: "UP" | "DOWN"
   confidence: number
   reasoning: string
-  generated_at?: string
-  expires_at?: string
-  target_period?: string
+  created_at?: string
+  archived_at?: string
 }
 
 export function PredictionTracker() {
@@ -78,7 +71,7 @@ export function PredictionTracker() {
           No Completed Predictions Yet
         </p>
         <p className="text-muted-foreground text-sm">
-          Weekly predictions will appear here once a new cycle begins.
+          Predictions will appear here after they are archived (typically after 3 weeks).
         </p>
       </Card>
     )
@@ -87,20 +80,15 @@ export function PredictionTracker() {
   return (
     <div className="space-y-4">
       {predictions.map((p) => {
-        // Determine starting price - handle both field name variants
-        const startPrice = p.start_price || p.current_price || 0
-        const currentPrice = p.last_price || p.current_price || 0
-        const progressValue = p.progress || 0
-        const progressWidth = Math.min(Math.abs(progressValue), 100)
+        const percentChange = p.current_price && p.price_target 
+          ? ((p.price_target - p.current_price) / p.current_price) * 100 
+          : 0
+        
+        const hitTarget = p.current_price && p.price_target 
+          ? p.price_target >= p.current_price 
+          : false
 
-        const statusColor =
-          p.status === "Hit"
-            ? "text-green-500"
-            : p.status === "Expired"
-            ? "text-red-500"
-            : p.status === "Tracking"
-            ? "text-yellow-500"
-            : "text-gray-500"
+        const confidence = Math.round((p.confidence ?? 0.65) * 100)
 
         return (
           <Card key={p.id} className="p-6 space-y-4">
@@ -109,45 +97,62 @@ export function PredictionTracker() {
                 <h3 className="text-lg font-bold">{p.ticker}</h3>
                 {p.asset_name && <p className="text-sm text-muted-foreground">{p.asset_name}</p>}
               </div>
-              <span className={`text-sm font-semibold ${statusColor}`}>
-                {p.status || "Tracking"}
+              <span className={`text-sm font-semibold px-3 py-1 rounded ${
+                hitTarget
+                  ? "bg-green-500/20 text-green-400"
+                  : "bg-yellow-500/20 text-yellow-400"
+              }`}>
+                {hitTarget ? "Target Hit" : "Tracking"}
               </span>
             </div>
 
             <div className="text-sm text-muted-foreground space-y-1">
-              <div>Start: ${startPrice.toFixed(2)} | Current: ${currentPrice.toFixed(2)}</div>
-              <div>Target: ${p.price_target.toFixed(2)}</div>
-              {p.target_period && <div>Horizon: {p.target_period}</div>}
+              <div>Entry: ${p.current_price.toFixed(2)} | Target: ${p.price_target.toFixed(2)}</div>
+              {p.archived_at && (
+                <div>Archived: {new Date(p.archived_at).toLocaleDateString()}</div>
+              )}
             </div>
 
             {p.reasoning && <p className="text-sm text-foreground">{p.reasoning}</p>}
 
-            {p.progress !== undefined && (
+            {/* Performance metrics */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <span>Progress Toward Target</span>
-                  <span>{progressValue.toFixed(2)}%</span>
+                  <span>Change</span>
+                  <span className={percentChange >= 0 ? "text-green-400" : "text-red-400"}>
+                    {percentChange >= 0 ? "+" : ""}{percentChange.toFixed(1)}%
+                  </span>
                 </div>
-
-                <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+                <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                   <div
-                    className={`h-3 rounded-full ${
-                      progressValue >= 0 ? "bg-emerald-500" : "bg-red-500"
+                    className={`h-2 rounded-full ${
+                      percentChange >= 0 ? "bg-green-500" : "bg-red-500"
                     }`}
-                    style={{ width: `${progressWidth}%` }}
+                    style={{ width: `${Math.min(Math.abs(percentChange), 100)}%` }}
                   />
                 </div>
               </div>
-            )}
 
-            {p.confidence && (
               <div>
-                <div className="flex justify-between text-xs">
+                <div className="flex justify-between text-xs mb-1">
                   <span>Confidence</span>
-                  <span className="font-semibold">{Math.round(p.confidence * 100)}%</span>
+                  <span className="font-semibold">{confidence}%</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-2 rounded-full ${
+                      confidence >= 75
+                        ? "bg-emerald-500"
+                        : confidence >= 60
+                        ? "bg-yellow-400"
+                        : "bg-red-400"
+                    }`}
+                    style={{ width: `${confidence}%` }}
+                  />
                 </div>
               </div>
-            )}
+            </div>
           </Card>
         )
       })}
