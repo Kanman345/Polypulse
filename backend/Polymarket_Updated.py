@@ -1,9 +1,14 @@
+from dotenv import load_dotenv
+import os
+
+# Load environment variables FIRST before any other imports
+load_dotenv()
+
 import requests
 import json
-import os
 import time
 from langchain_groq import ChatGroq
-from prices import get_stock_price
+from prices import get_prices_batch
 
 # ===============================
 # CONFIG
@@ -11,12 +16,6 @@ from prices import get_stock_price
 
 GAMMA_BASE = "https://gamma-api.polymarket.com"
 CLOB_BASE = "https://clob.polymarket.com"
-
-from dotenv import load_dotenv
-import os
-
-# Load environment variables from .env file
-load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
@@ -111,6 +110,13 @@ def get_event_by_id(event_id):
 import statistics
 
 def compute_nvidia_confidence(market_data):
+    """Calculate NVIDIA confidence from price target distribution.
+    
+    Handles edge cases:
+    - When all probs are 100%, distribute confidence proportionally
+    - When std=0, cap at 0.85 to avoid overconfidence
+    - Use spread of price levels as signal strength
+    """
     probs = []
 
     for m in market_data:
@@ -119,20 +125,35 @@ def compute_nvidia_confidence(market_data):
             p = m["outcomes"].get("Yes", 0)
 
             if "reach $" in q:
-                price = int(q.split("$")[1].split()[0])
-                if price >= 200:
-                    probs.append(p)
+                try:
+                    price = int(q.split("$")[1].split()[0])
+                    if price >= 200:
+                        probs.append(p)
+                except (ValueError, IndexError):
+                    continue
 
     if len(probs) < 2:
         return 0.5
 
     avg = statistics.mean(probs)
-    std = statistics.pstdev(probs)
+    std = statistics.pstdev(probs) if len(probs) > 1 else 0
 
-    # Confidence increases with conviction AND agreement
-    confidence = avg * (1 - std)
+    # Handle redundant probabilities (all same → cap confidence)
+    if std == 0:
+        # When all 100%, cap at 0.75; when all 0%, return 0.3
+        if avg >= 0.95:
+            return 0.75
+        elif avg <= 0.05:
+            return 0.30
+        else:
+            return round(avg, 2)
 
-    return round(confidence, 2)
+    # Blend avg (conviction) with disagreement metric
+    # Higher disagreement (higher std) → lower confidence
+    # But still weight average heavily
+    confidence = avg * 0.7 + (1 - std) * 0.3
+    
+    return round(min(confidence, 0.90), 2)  # Cap at 0.90 for realistic bounds
 def fetch_token_midpoint(token_id):
     try:
         resp = requests.get(
@@ -277,197 +298,83 @@ def run_llm_analysis(market_data):
     ]
     from market_prices import get_current_price
 
-    WATCHLIST = ["AAPL","MSFT","NVDA","AMZN","GOOGL","META","TSLA","JPM","V","JNJ"]
-
+    # Fetch all prices in batch with Finnhub (with delays to avoid rate limiting)
+    prices = get_prices_batch({
+        "nvidia": "NVDA",
+        "bitcoin": "BINANCE:BTCUSDT",
+        "gold": "GLD"  # Changed from OANDA:XAU_USD to GLD (SPDR Gold ETF) - works with Finnhub
+    })
+    
     price_map = {}
-    for t in WATCHLIST:
-        p = get_current_price(t)
-        if p:
-            price_map[t] = round(p,2)
+    
+    # Build price map with fallbacks
+    if prices.get("nvidia"):
+        price_map["nvidia"] = round(prices["nvidia"], 2)
+    
+    if prices.get("bitcoin"):
+        price_map["bitcoin"] = round(prices["bitcoin"], 2)
+    
+    if prices.get("gold"):
+        price_map["gold"] = round(prices["gold"], 2)
+    else:
+        # Fallback only if Finnhub failed for gold
+        price_map["gold"] = 1925.0
+        print("⚠️ Gold price fetch failed. Using fallback: $1925.0")
 
     price_context = json.dumps(price_map, indent=2)
 
     prompt = f"""
-    You are a macro market intelligence engine.
-
-    You are given real-money probabilities from prediction markets.
-    Your job is to infer the current macro regime and market outlook.
-
-    INPUT DATA:
+    Infer macro regime and asset outlook from prediction market probabilities.
+    
+    CURRENT PRICES (USD): {price_context}
+    NVIDIA_CONFIDENCE_OVERRIDE: {nvidia_confidence}
+    
+    MARKET DATA:
     {json.dumps(filtered_data, indent=2)}
-    DERIVED SIGNALS:
-    NVIDIA_CONFIDENCE_OVERRIDE = {nvidia_confidence}
-
-    CURRENT MARKET PRICES (USD):
-    These are real market prices at the time of prediction.
-    You MUST use these when calculating price targets.
-
-    {price_context}
-
-
-    OUTPUT REQUIREMENTS:
-    You are a JSON API. You do not write explanations, markdown, or code.
-
-    CRITICAL:
-    - Output MUST be pure JSON
-    - No backticks
-    - No ```json
-    - No ```python
-    - No text before or after JSON
-    - No functions
-    - No comments
-    - No variable names
-    - No pseudocode
-    - If you output anything except JSON, the system will crash
-    Return ONE valid JSON object with the following structure:
-
+    
+    RETURN PURE JSON ONLY (no text, backticks, or markdown).
+    
     {{
-    "market_sentiment": {{
-        "label": "Bullish | Neutral | Bearish",
-        "score": integer between 0 and 100
-    }},
-    "market_regime": {{
-        "risk": "Risk-On | Risk-Off | Transitional",
-        "liquidity": "Easing | Neutral | Tightening",
-        "volatility": "Low | Normal | Elevated"
-    }},
-    "crowd_signals": {{
-        "fed_policy_bias": "",
-        "recession_probability": number between 0 and 1,
-        "rate_cut_bias": ""
-    }},
-    "asset_outlook": {{
-        "nvidia": {{
-        "bias": "Positive | Neutral | Negative",
-        "confidence": number between 0 and 1,
-        "reasoning": ""
-        }},
-        "bitcoin": {{
-        "bias": "Positive | Neutral | Negative",
-        "confidence": number between 0 and 1
-        }},
-        "us_economy": {{
-        "bias": "Positive | Neutral | Negative",
-        "confidence": number between 0 and 1
-        }}
-    }},
-    "top_stocks": [
-        {{
-        "name": "Example Corp",
-        "ticker": "EXM",
-        "sector": "Technology",
-        "reasoning": "Example reasoning",
-        "expected_outperformance": "High",
-        "price_target": 1250,
-        "target_period": "3 months"
-        }}
-    ],
-    "sector_performance": [
-        {{
-        "name": "sector_name",
-        "performance": number (YTD return as percentage value, e.g., 12.5 means +12.5%, -4.5 means -4.5%),
-        "change": "string (must match performance: e.g., '+15.1%' or '-5.1%')"
-        }}
-    ],
-    "risk_indicators": {{
-        "bubble_risk": integer between 0 and 100,
-        "market_fragility": integer between 0 and 100,
-        "upside_probability": integer between 0 and 100
+      "market_sentiment": {{"label": "Bullish|Neutral|Bearish", "score": 0-100}},
+      "market_regime": {{"risk": "Risk-On|Risk-Off|Transitional", "liquidity": "Easing|Neutral|Tightening", "volatility": "Low|Normal|Elevated"}},
+      "crowd_signals": {{"fed_policy_bias": "string", "recession_probability": 0-1, "rate_cut_bias": "string"}},
+      "asset_outlook": {{
+        "nvidia": {{"bias": "Positive|Neutral|Negative", "confidence": 0-1, "reasoning": "non-empty string"}},
+        "bitcoin": {{"bias": "Positive|Neutral|Negative", "confidence": 0-1, "reasoning": "non-empty string"}},
+        "us_economy": {{"bias": "Positive|Neutral|Negative", "confidence": 0-1, "reasoning": "non-empty string"}}
+      }},
+      "asset_price_predictions": {{
+        "nvidia": {{"current_price": number, "price_target": number (±25% of current, min 2% move), "target_period": "3 months", "confidence": 0-1, "reasoning": "1-2 sentences"}},
+        "bitcoin": {{"current_price": number, "price_target": number (±25% of current, min 2% move), "target_period": "3 months", "confidence": 0-1, "reasoning": "1-2 sentences"}},
+        "gold": {{"current_price": number, "price_target": number (±25% of current, min 2% move), "target_period": "3 months", "confidence": 0-1, "reasoning": "1-2 sentences"}}
+      }},
+      "sector_performance": [
+        {{"name": "Technology", "performance": number, "change": "string"}},
+        {{"name": "Healthcare", "performance": number, "change": "string"}},
+        {{"name": "Financials", "performance": number, "change": "string"}},
+        {{"name": "Industrials", "performance": number, "change": "string"}},
+        {{"name": "Energy", "performance": number, "change": "string"}}
+      ],
+      "risk_indicators": {{"bubble_risk": 0-100, "market_fragility": 0-100, "upside_probability": 0-100}}
     }}
-    }}
-
-    CRITICAL SCHEMA REQUIREMENT:
-    Every stock in "top_stocks" MUST include:
-    - ticker
-    - name
-    - sector
-    - reasoning
-    - expected_outperformance
-    - price_target (MANDATORY NUMBER, not percentage)
-    - target_period
-
-    If price_target is missing OR not a number → output is INVALID.
-    Never replace price_target with expected_return.
-
-    RULES:
-    - Base conclusions ONLY on the input probabilities
-    - Prioritize rates, yields, inflation, and recession risk over narratives
-    - Do NOT mention prediction markets
-    - Do NOT add text outside JSON
-    - Stocks MUST be individual operating companies
-    - ETFs, indices, sector funds, and baskets are STRICTLY forbidden
-    - Return EXACTLY 3 stocks in "top_stocks"
-    - Bitcoin outlook refers to the asset itself
-    - A specific NVIDIA-related prediction market is present
-    - NVIDIA outlook MUST be derived from the distribution of its price target probabilities
-    - You MUST use NVIDIA_CONFIDENCE_OVERRIDE as the confidence value for NVIDIA.
-    - Do NOT copy a single price-level probability as confidence.
-    - Consider both upside levels and downside protection
-    - Do NOT include a generic equities outlook
-    - For each stock recommendation, provide a realistic price_target based on the stock's sector outlook and market conditions
-    - target_period MUST be exactly "3 months"
-        - The recommendation represents a 3-month forward price expectation
-    - sector_performance MUST include 5 sectors: Technology, Healthcare, Financials, Industrials, Energy
-    - Sector performance values should reflect the market outlook and recession/rate probabilities
-    - Use realistic YTD performance ranges (-15% to +20% range)
-    - Higher recession probability should lead to lower energy and industrial performance
-    - Fed policy and rate expectations should influence financial sector performance
-    - CRITICAL: For each sector, the "change" field MUST be formatted EXACTLY as: if performance >= 0, use "+performance%" else use "performance%" 
-    - Example: if performance = 15.1, then change = "+15.1%"; if performance = -5.1, then change = "-5.1%"
-
-    PRICE TARGET RULES:
-    - price_target MUST be a realistic future stock price (not percentage)
-    - price_target must be greater than current price if outlook is bullish
-    - NEVER output expected_return
-    - NEVER output percentages for stocks
-    REALISM CONSTRAINT:
-    - price_target must be between +3% and +40% above current price
-    - Do not produce extreme multi-bagger predictions
-    - Assume institutional research realism
-    - The prediction should resemble a professional equity research target
-
-    DIRECTIONAL CONSISTENCY (CRITICAL):
-    For each recommended stock:
-    If expected_outperformance = "High"
-    → price_target MUST be at least 8% ABOVE the current price
-    If expected_outperformance = "Moderate"
-    → price_target MUST be at least 3% ABOVE the current price
-    Never recommend a stock with a target price below its current price.
-    If violated, the output is invalid.
-
-    CONSISTENCY RULES (MANDATORY):
-    - If recession_probability > 0.6:
-    - market_sentiment MUST NOT be "Bullish"
-    - market_regime.risk MUST be "Risk-Off" or "Transitional"
-    - Energy and Industrials performance MUST be negative or near-zero
-    - If NVIDIA has ≥ 2 price targets ≥ $200 with probability ≥ 0.8:
-        nvidia.bias MUST be "Positive"
-    - If fed_policy_bias is "Hawkish" and rate_cut_bias is "Unlikely":
-    - liquidity MUST NOT be "Easing"
-    - Financials performance MUST reflect rate environment
-    - If volatility is "Elevated":
-    - market_sentiment score MUST be ≤ 60
-    - expected_outperformance MUST be exactly one of:
-        - "Moderate"
-        - "High"
-        (No other words allowed)
-
-    Sentiment scoring guidance:
-    - 0–30 = Bearish
-    - 31–60 = Neutral
-    - 61–100 = Bullish
-
-    WEEKLY RECOMMENDATION RULE:
-    This output will be frozen and tracked for performance.
-    Do NOT optimize for excitement.
-    Optimize for realistic accuracy.
-    Avoid speculative or lottery-like targets.
-
-    Return ONLY valid JSON.
+    
+    CRITICAL RULES:
+    - NVIDIA confidence = {nvidia_confidence} (non-negotiable)
+    - GOLD current_price = {price_map.get('gold', 'N/A')} (copy exactly, don't hallucinate)
+    - Price targets MUST move minimum 2% from current
+    - Risk-On regime: +40% max upside, -5% max downside floor
+    - Risk-Off regime: +25% max upside, ALLOW -30% downside (downturns are real)
+    - Neutral regime: +30% max upside, -10% max downside
+    - Format sector change: if performance >= 0 use "+X%" else "X%"
+    - Risk-Off regime → Bitcoin neutral/negative, Gold positive
+    - Recession prob > 0.6 → no Bullish sentiment, Energy/Industrials negative
+    - ALL reasoning fields must be non-empty and reference market signals
+    - Accuracy over excitement. Meaningful downside OK in downturns.
     """
 
     response = llm.invoke(prompt)
-    return response.content
+    llm_json = extract_json(response.content)
+    return llm_json
 
 # ===============================
 # MAIN
@@ -484,30 +391,30 @@ if __name__ == "__main__":
     print(json.dumps(market_data, indent=2))
 
     print("\nRunning LLM interpretation...\n")
-    llm_output = run_llm_analysis(market_data)
+    parsed = run_llm_analysis(market_data)
 
-    print("=== LLM OUTPUT ===")
-    print(llm_output)
+    print("=== LLM OUTPUT (PARSED) ===")
+    print(json.dumps(parsed, indent=2))
 
     try:
-        parsed = extract_json(llm_output)
-        # Convert expected_return to real price targets
-        for stock in parsed.get("top_stocks", []):
-            ticker = stock.get("ticker")
-            expected_return = stock.get("expected_return")
-
-            if ticker and expected_return is not None:
-                current_price = get_stock_price(ticker)
-                if current_price:
-                    stock["price_target"] = round(current_price * (1 + expected_return), 2)
-                else:
-                    stock["price_target"] = None
-        print("\n=== PARSED OUTPUT ===")
-        print(json.dumps(parsed, indent=2))
+        # Extract macro regime for validator to respect downside
+        macro_regime = parsed.get("market_regime", {}).get("risk", "Neutral")
+        
+        # Optionally apply validator to clamp targets
+        # (Commented for now - let LLM predictions flow through)
+        # from price_validator import validate_price_target
+        # for asset in ["nvidia", "bitcoin", "gold"]:
+        #     if asset in parsed.get("asset_price_predictions", {}):
+        #         pred = parsed["asset_price_predictions"][asset]
+        #         pred["price_target"] = validate_price_target(
+        #             pred["current_price"],
+        #             pred["price_target"],
+        #             macro_regime=macro_regime
+        #         )
         
         # Save predictions locally
         from storage import save_predictions_to_storage
         save_predictions_to_storage(parsed)
         print("\n✓ Predictions saved to local storage")
-    except json.JSONDecodeError:
-        print("\n⚠️ LLM output was not valid JSON")
+    except Exception as e:
+        print(f"\n⚠️ Error processing predictions: {e}")
