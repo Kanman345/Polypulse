@@ -83,20 +83,30 @@ export default function RecommendationsPage() {
           {error && !loading && (
             <Card className="p-6 border-red-500/50 bg-red-950/10">
               <h3 className="font-semibold text-red-500 mb-2">Unable to Load Recommendations</h3>
-              <p className="text-sm text-muted-foreground">{error}</p>
+              <p className="text-sm text-muted-foreground mb-4">{error}</p>
+              <Button 
+                onClick={() => fetchData()} 
+                variant="outline"
+                className="text-sm"
+              >
+                Retry
+              </Button>
             </Card>
           )}
 
           {/* Weekly Recommendations */}
-          {data && !loading && (
+          {data && data.analysis && !loading && (
             <div>
               <div className="mb-4">
                 <h2 className="text-3xl font-bold tracking-tight">Top Stock Recommendations</h2>
-                <p className="text-muted-foreground mt-1">AI-powered stock recommendations based on market analysis</p>
+                <p className="text-muted-foreground mt-1">
+                  AI-powered stock recommendations based on market analysis
+                  {data.cached_recommendations && " (Cached)"}
+                </p>
               </div>
               <WeeklyRecommendations
-                topStocks={data.analysis.top_stocks}
-                isCached={data.cached_recommendations}
+                topStocks={data.analysis.top_stocks || []}
+                isCached={data.cached_recommendations || false}
               />
             </div>
           )}

@@ -15,13 +15,20 @@ interface Props {
 }
 
 export function PriceProjection({ startPrice, targetPrice }: Props) {
-  const percentChange =
-    ((targetPrice - startPrice) / startPrice) * 100
+  // Handle invalid inputs
+  if (!startPrice || !targetPrice || startPrice <= 0 || targetPrice <= 0) {
+    return (
+      <div className="w-full h-[100px] flex items-center justify-center text-xs text-muted-foreground">
+        Invalid price data
+      </div>
+    )
+  }
 
+  const percentChange = ((targetPrice - startPrice) / startPrice) * 100
   const isUp = percentChange >= 0
 
+  // Calculate padding for better visualization
   const padding = Math.abs(targetPrice - startPrice) * 0.6
-
   const minY = Math.min(startPrice, targetPrice) - padding
   const maxY = Math.max(startPrice, targetPrice) + padding
 
