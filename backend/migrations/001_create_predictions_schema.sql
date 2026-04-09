@@ -43,28 +43,6 @@ CREATE INDEX IF NOT EXISTS idx_tracker_archived_at ON prediction_tracker(archive
 ALTER TABLE predictions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE prediction_tracker ENABLE ROW LEVEL SECURITY;
 
--- Enable RLS (Row Level Security) if needed
-ALTER TABLE predictions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE prediction_tracker ENABLE ROW LEVEL SECURITY;
-
 -- Optional: Create policy to allow all authenticated users to read
 CREATE POLICY "Allow read access to predictions" ON predictions FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Allow read access to tracker" ON prediction_tracker FOR SELECT USING (auth.role() = 'authenticated');
-
--- Create market_analysis_cache table (6-hour macro analysis snapshots)
-CREATE TABLE IF NOT EXISTS market_analysis_cache (
-    id BIGSERIAL PRIMARY KEY,
-    analysis JSONB NOT NULL,
-    market_data JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    meta JSONB DEFAULT '{}'
-);
-
--- Create index for market_analysis_cache performance
-CREATE INDEX IF NOT EXISTS idx_market_analysis_cache_created_at ON market_analysis_cache(created_at DESC);
-
--- Enable RLS on market_analysis_cache
-ALTER TABLE market_analysis_cache ENABLE ROW LEVEL SECURITY;
-
--- Allow read access to market analysis cache
-CREATE POLICY "Allow read access to market_analysis_cache" ON market_analysis_cache FOR SELECT USING (auth.role() = 'authenticated');
