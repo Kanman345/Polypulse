@@ -8,30 +8,48 @@ REFRESH_INTERVAL_DAYS = 21  # 3 weeks
 def should_refresh_predictions():
     """
     Check if we should generate new predictions (every 3 weeks).
+    Only refreshes if no active prediction batch exists or 3+ weeks have passed.
     """
     try:
+        # Get the most recent active prediction batch
         result = supabase.table("predictions") \
             .select("created_at") \
+            .eq("is_active", True) \
             .order("created_at", desc=True) \
             .limit(1) \
             .execute()
         
         if not result.data:
-            return True  # No predictions exist yet
+            return True  # No active predictions exist yet
         
-        last_created = datetime.fromisoformat(result.data[0]["created_at"])
-        days_since = (datetime.utcnow() - last_created).days
+        # Parse the timestamp and compare with current UTC time
+        last_created_str = result.data[0]["created_at"]
+        # Handle both ISO format with and without 'Z'
+        if last_created_str.endswith('Z'):
+            last_created = datetime.fromisoformat(last_created_str.replace('Z', '+00:00'))
+        else:
+            last_created = datetime.fromisoformat(last_created_str)
         
-        return days_since >= REFRESH_INTERVAL_DAYS
+        # Get current UTC time (naive for comparison)
+        now_utc = datetime.utcnow().replace(tzinfo=None) if last_created.tzinfo else datetime.utcnow()
+        last_created_naive = last_created.replace(tzinfo=None) if last_created.tzinfo else last_created
+        
+        days_since = (now_utc - last_created_naive).days
+        
+        should_refresh = days_since >= REFRESH_INTERVAL_DAYS
+        print(f"🔍 Last prediction: {days_since} days ago. Refresh needed: {should_refresh}")
+        
+        return should_refresh
     
     except Exception as e:
-        print(f"Error checking refresh interval: {e}")
-        return True
+        print(f"⚠️ Error checking refresh interval: {e}")
+        return False  # Conservative: don't refresh if there's an error
 
 
 def archive_old_predictions():
     """
-    Move old predictions to prediction_tracker after 3 weeks.
+    Move predictions to prediction_tracker after 3 weeks.
+    Only archives if they haven't already been archived.
     """
     try:
         cutoff_date = (datetime.utcnow() - timedelta(days=REFRESH_INTERVAL_DAYS)).isoformat()
@@ -43,27 +61,33 @@ def archive_old_predictions():
             .eq("is_active", True) \
             .execute()
         
+        if not old_preds.data:
+            return 0
+        
         archived_count = 0
         for pred in old_preds.data:
-            # Save to tracker
-            supabase.table("prediction_tracker").insert({
-                "ticker": pred["ticker"],
-                "price_target": pred["price_target"],
-                "current_price": pred["current_price"],
-                "confidence": pred["confidence"],
-                "reasoning": pred["reasoning"],
-                "prediction_created_at": pred["created_at"],
-                "archived_at": datetime.utcnow().isoformat(),
-                "meta": json.dumps(pred)
-            }).execute()
-            
-            # Mark as inactive
-            supabase.table("predictions") \
-                .update({"is_active": False}) \
-                .eq("id", pred["id"]) \
-                .execute()
-            
-            archived_count += 1
+            try:
+                # Save to tracker
+                supabase.table("prediction_tracker").insert({
+                    "ticker": pred["ticker"],
+                    "price_target": pred["price_target"],
+                    "current_price": pred["current_price"],
+                    "confidence": pred["confidence"],
+                    "reasoning": pred["reasoning"],
+                    "prediction_created_at": pred["created_at"],
+                    "archived_at": datetime.utcnow().isoformat(),
+                    "meta": json.dumps(pred)
+                }).execute()
+                
+                # Mark as inactive
+                supabase.table("predictions") \
+                    .update({"is_active": False}) \
+                    .eq("id", pred["id"]) \
+                    .execute()
+                
+                archived_count += 1
+            except Exception as e:
+                print(f"⚠️ Error archiving prediction {pred.get('id')}: {e}")
         
         if archived_count > 0:
             print(f"✓ Archived {archived_count} predictions to tracker")
@@ -71,14 +95,14 @@ def archive_old_predictions():
         return archived_count
     
     except Exception as e:
-        print(f"⚠️ Error archiving predictions: {e}")
+        print(f"⚠️ Error in archive process: {e}")
         return 0
 
 
 def save_predictions_to_storage(analysis):
     """
     Save asset predictions (NVIDIA, Bitcoin, Gold) to Supabase.
-    Allows refresh every 3 weeks.
+    PROTECTED: Only refreshes every 3 weeks minimum. Safe to call every 6 hours.
     
     Args:
         analysis: dict from LLM with {
@@ -92,12 +116,14 @@ def save_predictions_to_storage(analysis):
         }
     """
     
-    # Check if we should refresh
+    # 🛡️ PROTECTION: Check if we should refresh predictions
     if not should_refresh_predictions():
-        print("⏳ Predictions still fresh (< 3 weeks). Skipping refresh.")
+        print("⏳ Predictions locked for next 3 weeks. Skipping prediction update (but market data still updates).")
         return
     
-    # Archive old predictions before creating new ones
+    print("📊 Refreshing predictions after 3-week interval...")
+    
+    # Archive predictions older than 3 weeks before creating new ones
     archive_old_predictions()
     
     if not analysis or "asset_price_predictions" not in analysis:
@@ -155,6 +181,6 @@ def save_predictions_to_storage(analysis):
             print(f"❌ Error saving {asset}: {e}")
     
     if saved_count > 0:
-        print(f"\n✓ Saved {saved_count} predictions to Supabase (3-week refresh)")
+        print(f"\n✅ Saved {saved_count} predictions to Supabase (next refresh in 3 weeks)")
     else:
         print("❌ No predictions saved")
