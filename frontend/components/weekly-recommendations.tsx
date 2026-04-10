@@ -137,8 +137,6 @@ export function WeeklyRecommendations({ topStocks = [], isCached = false }: Week
                     </div>
                   </div>
                 </div>
-                </div>
-                </div>
               </div>
             </Card>
           )
