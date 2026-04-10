@@ -98,9 +98,9 @@ export default function RecommendationsPage() {
           {data && data.analysis && !loading && (
             <div>
               <div className="mb-4">
-                <h2 className="text-3xl font-bold tracking-tight">Top Stock Recommendations</h2>
+                <h2 className="text-3xl font-bold tracking-tight">Recommendations</h2>
                 <p className="text-muted-foreground mt-1">
-                  AI-powered stock recommendations based on market analysis
+                  AI-powered stock recommendations based on market analysis. Updates every 3 weeks
                   {data.cached_recommendations && " (Cached)"}
                 </p>
               </div>

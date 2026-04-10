@@ -25,8 +25,8 @@ export function WeeklyRecommendations({ topStocks = [], isCached = false }: Week
       {/* Weekly banner */}
       <div className="mb-4">
         <p className="text-xs text-muted-foreground">
-          Weekly stock recommendations — updated every Monday
-          {isCached && " • Locked for this week"}
+          Stock recommendations — updated every 3 weeks
+          {isCached && " • Locked for this cycle"}
         </p>
       </div>
 
@@ -72,63 +72,71 @@ export function WeeklyRecommendations({ topStocks = [], isCached = false }: Week
 
                 {/* CENTER SIDE - METRICS */}
                 <div className="flex justify-center">
-                  <div className="space-y-4 max-w-sm w-full">
-                  {/* Confidence */}
-                  <div>
-                    <div className="flex justify-between text-xs">
-                      <span>Confidence</span>
-                      <span className="font-bold">{confidence}%</span>
+                  <div className="grid grid-cols-2 gap-12 w-full max-w-2xl">
+                    {/* LEFT METRICS */}
+                    <div className="space-y-4">
+                      {/* Confidence */}
+                      <div>
+                        <div className="flex justify-between text-xs mb-3">
+                          <span>Confidence</span>
+                          <span className="font-bold">{confidence}%</span>
+                        </div>
+
+                        <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                          <div
+                            className={`h-2 rounded-full transition-all duration-700 ${
+                              confidence >= 75
+                                ? "bg-emerald-500"
+                                : confidence >= 60
+                                ? "bg-yellow-400"
+                                : "bg-red-400"
+                            }`}
+                            style={{ width: `${confidence}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Price target */}
+                      {stock.price_target && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Expected Price Reach</p>
+                          <p className="text-lg font-bold text-green-400">
+                            ${Number(stock.price_target).toFixed(2)}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Projection Graph */}
+                      {stock.price_target && stock.current_price && (
+                        <div className="pt-2">
+                          <PriceProjection
+                            startPrice={Number(stock.current_price)}
+                            targetPrice={Number(stock.price_target)}
+                          />
+                        </div>
+                      )}
                     </div>
 
-                    <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                      <div
-                        className={`h-2 rounded-full transition-all duration-700 ${
-                          confidence >= 75
-                            ? "bg-emerald-500"
-                            : confidence >= 60
-                            ? "bg-yellow-400"
-                            : "bg-red-400"
-                        }`}
-                        style={{ width: `${confidence}%` }}
-                      />
+                    {/* RIGHT METRICS */}
+                    <div className="space-y-4">
+                      {/* Horizon */}
+                      {stock.target_period && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Time Horizon</p>
+                          <p className="text-lg font-bold">{stock.target_period}</p>
+                        </div>
+                      )}
+
+                      {/* Expected Outperformance */}
+                      {stock.expected_outperformance && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Expected Move</p>
+                          <p className="text-lg font-bold">{stock.expected_outperformance}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
-
-                  {/* Price target */}
-                  {stock.price_target && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">Expected Price Reach</p>
-                      <p className="text-lg font-bold text-green-400">
-                        ${Number(stock.price_target).toFixed(2)}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Projection Graph */}
-                  {stock.price_target && stock.current_price && (
-                    <div className="pt-2">
-                      <PriceProjection
-                        startPrice={Number(stock.current_price)}
-                        targetPrice={Number(stock.price_target)}
-                      />
-                    </div>
-                  )}
-
-                  {/* Horizon */}
-                  {stock.target_period && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">Time Horizon</p>
-                      <p className="text-lg font-bold">{stock.target_period}</p>
-                    </div>
-                  )}
-
-                  {/* Expected Outperformance */}
-                  {stock.expected_outperformance && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">Expected Move</p>
-                      <p className="text-lg font-bold">{stock.expected_outperformance}</p>
-                    </div>
-                  )}
+                </div>
                 </div>
                 </div>
               </div>
