@@ -68,10 +68,10 @@ export function PredictionTracker() {
     return (
       <Card className="p-12 border-border text-center">
         <p className="text-muted-foreground text-lg font-semibold mb-2">
-          No Completed Predictions Yet
+          No predictions to track right now
         </p>
         <p className="text-muted-foreground text-sm">
-          Predictions will appear here after they are archived (typically after 3 weeks).
+          Will update in 3 weeks.
         </p>
       </Card>
     )
@@ -92,7 +92,7 @@ export function PredictionTracker() {
 
         return (
           <Card key={p.id} className="p-6 space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col items-center text-center space-y-2">
               <div>
                 <h3 className="text-lg font-bold">{p.ticker}</h3>
                 {p.asset_name && <p className="text-sm text-muted-foreground">{p.asset_name}</p>}
@@ -106,17 +106,18 @@ export function PredictionTracker() {
               </span>
             </div>
 
-            <div className="text-sm text-muted-foreground space-y-1">
+            <div className="text-sm text-muted-foreground space-y-1 text-center">
               <div>Entry: ${p.current_price.toFixed(2)} | Target: ${p.price_target.toFixed(2)}</div>
               {p.archived_at && (
                 <div>Archived: {new Date(p.archived_at).toLocaleDateString()}</div>
               )}
             </div>
 
-            {p.reasoning && <p className="text-sm text-foreground">{p.reasoning}</p>}
+            {p.reasoning && <p className="text-sm text-foreground text-center">{p.reasoning}</p>}
 
             {/* Performance metrics */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex justify-center">
+              <div className="grid grid-cols-2 gap-4 max-w-md">
               <div>
                 <div className="flex justify-between text-xs mb-1">
                   <span>Change</span>
