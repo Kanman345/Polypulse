@@ -41,7 +41,7 @@ export function WeeklyRecommendations({ topStocks = [], isCached = false }: Week
 
           return (
             <Card key={idx} className="p-6 border-border hover:border-accent transition-colors">
-              <div className="grid lg:grid-cols-[1fr_auto] gap-6">
+              <div className="space-y-6">
                 {/* LEFT SIDE */}
                 <div className="space-y-4">
                   <div className="flex items-start justify-between">
@@ -70,8 +70,9 @@ export function WeeklyRecommendations({ topStocks = [], isCached = false }: Week
                   <p className="text-foreground leading-relaxed">{stock.reasoning}</p>
                 </div>
 
-                {/* RIGHT SIDE */}
-                <div className="lg:border-l border-border lg:pl-6 space-y-4">
+                {/* CENTER SIDE - METRICS */}
+                <div className="flex justify-center">
+                  <div className="space-y-4 max-w-sm w-full">
                   {/* Confidence */}
                   <div>
                     <div className="flex justify-between text-xs">
@@ -128,6 +129,7 @@ export function WeeklyRecommendations({ topStocks = [], isCached = false }: Week
                       <p className="text-lg font-bold">{stock.expected_outperformance}</p>
                     </div>
                   )}
+                </div>
                 </div>
               </div>
             </Card>
