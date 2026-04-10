@@ -92,7 +92,7 @@ export function PredictionTracker() {
 
         return (
           <Card key={p.id} className="p-6 space-y-4">
-            <div className="flex flex-col items-center text-center space-y-2">
+            <div className="flex justify-between items-center">
               <div>
                 <h3 className="text-lg font-bold">{p.ticker}</h3>
                 {p.asset_name && <p className="text-sm text-muted-foreground">{p.asset_name}</p>}
