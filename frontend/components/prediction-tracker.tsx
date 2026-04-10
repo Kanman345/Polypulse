@@ -153,6 +153,7 @@ export function PredictionTracker() {
                   />
                 </div>
               </div>
+              </div>
             </div>
           </Card>
         )
