@@ -4,11 +4,16 @@ from market_prices import get_current_price
 
 
 def update_all_prediction_progress():
+    """Update progress for all inactive (archived) predictions"""
 
     rows = supabase.table("predictions") \
         .select("*") \
         .eq("is_active", False) \
         .execute().data
+
+    if not rows:
+        print("No archived predictions to update.")
+        return
 
     for row in rows:
 

@@ -4,7 +4,7 @@ import traceback
 import os
 from dotenv import load_dotenv
 load_dotenv()
-from prediction_cycle import get_existing_weekly_predictions, create_new_batch_id, get_current_week_window
+from prediction_cycle import get_existing_cycle_predictions, create_new_batch_id, get_current_cycle_window, archive_old_predictions
 from db import supabase
 
 from price_validator import validate_price_target
@@ -151,15 +151,32 @@ def run_scheduled_analysis():
 @app.route('/api/prediction-tracker', methods=['GET'])
 def prediction_tracker():
     try:
-        # Fetch archived/completed predictions from tracker table
-        rows = supabase.table("prediction_tracker") \
+        # Fetch archived predictions (older than 3 weeks, is_active = False)
+        rows = supabase.table("predictions") \
             .select("*") \
+            .eq("is_active", False) \
             .order("archived_at", desc=True) \
             .execute()
 
+        # Transform to match frontend expectations
+        predictions = []
+        if rows.data:
+            for row in rows.data:
+                predictions.append({
+                    "id": row["id"],
+                    "ticker": row["ticker"],
+                    "asset_name": row.get("asset_name"),
+                    "current_price": float(row["current_price"]),
+                    "price_target": float(row["price_target"]),
+                    "confidence": float(row["confidence"]),
+                    "reasoning": row.get("reasoning", ""),
+                    "created_at": row.get("created_at"),
+                    "archived_at": row.get("archived_at")
+                })
+
         return jsonify({
             "success": True,
-            "predictions": rows.data if rows.data else []
+            "predictions": predictions
         })
     except Exception as e:
         print(f"Error fetching prediction tracker: {e}")
