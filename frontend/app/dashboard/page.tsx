@@ -70,7 +70,7 @@ export default function MarketPulseDashboard() {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Weekly Recommendations
+                  Recommendations
                 </Link>
               </nav>
             </div>

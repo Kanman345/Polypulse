@@ -72,16 +72,15 @@ export function WeeklyRecommendations({ topStocks = [], isCached = false }: Week
 
                 {/* CENTER SIDE - METRICS */}
                 <div className="flex justify-center">
-                  <div className="grid grid-cols-2 gap-12 w-full max-w-2xl">
-                    {/* LEFT METRICS */}
-                    <div className="space-y-4">
+                  <div className="w-full max-w-3xl">
+                    {/* Row 1: Confidence and Time Horizon */}
+                    <div className="grid grid-cols-2 gap-16 mb-6">
                       {/* Confidence */}
                       <div>
                         <div className="flex justify-between text-xs mb-3">
                           <span>Confidence</span>
                           <span className="font-bold">{confidence}%</span>
                         </div>
-
                         <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                           <div
                             className={`h-2 rounded-full transition-all duration-700 ${
@@ -96,6 +95,17 @@ export function WeeklyRecommendations({ topStocks = [], isCached = false }: Week
                         </div>
                       </div>
 
+                      {/* Time Horizon */}
+                      {stock.target_period && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Time Horizon</p>
+                          <p className="text-lg font-bold">{stock.target_period}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Row 2: Expected Price Reach and Expected Move */}
+                    <div className="grid grid-cols-2 gap-16 mb-6">
                       {/* Price target */}
                       {stock.price_target && (
                         <div>
@@ -103,27 +113,6 @@ export function WeeklyRecommendations({ topStocks = [], isCached = false }: Week
                           <p className="text-lg font-bold text-green-400">
                             ${Number(stock.price_target).toFixed(2)}
                           </p>
-                        </div>
-                      )}
-
-                      {/* Projection Graph */}
-                      {stock.price_target && stock.current_price && (
-                        <div className="pt-2">
-                          <PriceProjection
-                            startPrice={Number(stock.current_price)}
-                            targetPrice={Number(stock.price_target)}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* RIGHT METRICS */}
-                    <div className="space-y-4">
-                      {/* Horizon */}
-                      {stock.target_period && (
-                        <div>
-                          <p className="text-xs text-muted-foreground">Time Horizon</p>
-                          <p className="text-lg font-bold">{stock.target_period}</p>
                         </div>
                       )}
 
@@ -135,6 +124,16 @@ export function WeeklyRecommendations({ topStocks = [], isCached = false }: Week
                         </div>
                       )}
                     </div>
+
+                    {/* Row 3: Projection Graph */}
+                    {stock.price_target && stock.current_price && (
+                      <div>
+                        <PriceProjection
+                          startPrice={Number(stock.current_price)}
+                          targetPrice={Number(stock.price_target)}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
