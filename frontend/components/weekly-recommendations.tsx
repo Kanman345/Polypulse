@@ -73,8 +73,8 @@ export function WeeklyRecommendations({ topStocks = [], isCached = false }: Week
                 {/* CENTER SIDE - METRICS */}
                 <div className="flex justify-center">
                   <div className="w-full max-w-3xl">
-                    {/* Row 1: Confidence and Time Horizon */}
-                    <div className="grid grid-cols-2 gap-16 mb-6">
+                    {/* Row 1: Confidence, Time Horizon, and Expected Move */}
+                    <div className="grid grid-cols-3 gap-16 mb-6">
                       {/* Confidence */}
                       <div>
                         <div className="flex justify-between text-xs mb-3">
@@ -102,10 +102,18 @@ export function WeeklyRecommendations({ topStocks = [], isCached = false }: Week
                           <p className="text-lg font-bold">{stock.target_period}</p>
                         </div>
                       )}
+
+                      {/* Expected Move */}
+                      {stock.expected_outperformance && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Expected Move</p>
+                          <p className="text-lg font-bold">{stock.expected_outperformance}</p>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Row 2: Expected Price Reach and Expected Move */}
-                    <div className="grid grid-cols-2 gap-16 mb-6">
+                    {/* Row 2: Expected Price Reach */}
+                    <div className="mb-6">
                       {/* Price target */}
                       {stock.price_target && (
                         <div>
@@ -113,14 +121,6 @@ export function WeeklyRecommendations({ topStocks = [], isCached = false }: Week
                           <p className="text-lg font-bold text-green-400">
                             ${Number(stock.price_target).toFixed(2)}
                           </p>
-                        </div>
-                      )}
-
-                      {/* Expected Outperformance */}
-                      {stock.expected_outperformance && (
-                        <div>
-                          <p className="text-xs text-muted-foreground">Expected Move</p>
-                          <p className="text-lg font-bold">{stock.expected_outperformance}</p>
                         </div>
                       )}
                     </div>
