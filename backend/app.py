@@ -17,7 +17,19 @@ from storage import save_predictions_to_storage
 app = Flask(__name__)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
-CORS(app, resources={r"/api/*": {"origins": [FRONTEND_URL]}}, supports_credentials=True)
+
+allowed_origins = [
+    FRONTEND_URL,
+    "https://polypulse-bice.vercel.app",
+    "https://polypulseglobal.com",
+    "https://www.polypulseglobal.com"
+]
+
+CORS(
+    app,
+    resources={r"/api/*": {"origins": allowed_origins}},
+    supports_credentials=True
+)
 
 
 # -------- Lazy Analysis Pipeline --------
