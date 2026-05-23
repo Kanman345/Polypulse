@@ -50,18 +50,19 @@ def get_market_analysis():
         top_stocks = []
         if predictions_res.data:
             for row in predictions_res.data:
+                entry_price = float(row["entry_price"])
                 top_stocks.append({
                     "ticker": row["ticker"],
                     "name": row.get("asset_name", row["ticker"]),
                     "sector": "Market Analysis",
                     "reasoning": row.get("reasoning", ""),
                     "price_target": float(row["price_target"]),
-                    "current_price": float(row["current_price"]),
+                    "current_price": entry_price,
                     "confidence": float(row["confidence"]),
                     "target_period": row.get("target_period", "3 months"),
                     "expected_outperformance": (
                         "High"
-                        if float(row["price_target"]) > float(row["current_price"])
+                        if float(row["price_target"]) > entry_price
                         else "Moderate"
                     )
                 })
@@ -151,25 +152,56 @@ def run_scheduled_analysis():
 @app.route('/api/prediction-tracker', methods=['GET'])
 def prediction_tracker():
     try:
-        # Fetch archived predictions (older than 3 weeks, is_active = False)
+        from market_prices import get_current_price
+
+        # Ticker → Finnhub symbol mapping + any unit conversion needed
+        # GLD entry prices are stored as gold SPOT price (per oz), so we must convert
+        # the raw GLD ETF price back to spot: spot = GLD_share / 0.093
+        # BTC must use the Binance feed; bare "BTC" returns garbage from Finnhub
+        GLD_OZ_PER_SHARE = 0.093
+        FINNHUB_SYMBOL = {
+            "BTC":  "BINANCE:BTCUSDT",
+            "GLD":  "GLD",   # raw ETF price, converted below
+            "NVDA": "NVDA",
+        }
+
+        def fetch_live_price(ticker: str):
+            symbol = FINNHUB_SYMBOL.get(ticker, ticker)
+            raw = get_current_price(symbol)
+            if raw is None:
+                return None
+            # Convert GLD ETF share price → gold spot price per oz
+            if ticker == "GLD":
+                return round(raw / GLD_OZ_PER_SHARE, 2)
+            return raw
+
+        # Fetch all predictions (both active and archived) ordered by creation date
         rows = supabase.table("predictions") \
             .select("*") \
-            .eq("is_active", False) \
-            .order("archived_at", desc=True) \
+            .order("created_at", desc=True) \
             .execute()
 
+        # Collect unique tickers and fetch live prices in one pass
+        tickers = list({row["ticker"] for row in (rows.data or [])})
+        live_prices = {ticker: fetch_live_price(ticker) for ticker in tickers}
+
         # Transform to match frontend expectations
+        # entry_price is the renamed column (was current_price) — fall back for pre-migration DBs
         predictions = []
         if rows.data:
             for row in rows.data:
+                ticker = row["ticker"]
+                raw_entry = row.get("entry_price") or row.get("current_price")
                 predictions.append({
                     "id": row["id"],
-                    "ticker": row["ticker"],
+                    "ticker": ticker,
                     "asset_name": row.get("asset_name"),
-                    "current_price": float(row["current_price"]),
+                    "entry_price": float(raw_entry) if raw_entry is not None else None,
+                    "live_price": live_prices.get(ticker),   # real-time, same units as entry
                     "price_target": float(row["price_target"]),
                     "confidence": float(row["confidence"]),
                     "reasoning": row.get("reasoning", ""),
+                    "is_active": row.get("is_active", True),
                     "created_at": row.get("created_at"),
                     "archived_at": row.get("archived_at")
                 })

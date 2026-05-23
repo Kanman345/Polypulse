@@ -71,7 +71,7 @@ def archive_old_predictions():
                 supabase.table("prediction_tracker").insert({
                     "ticker": pred["ticker"],
                     "price_target": pred["price_target"],
-                    "current_price": pred["current_price"],
+                    "current_price": pred["entry_price"],
                     "confidence": pred["confidence"],
                     "reasoning": pred["reasoning"],
                     "prediction_created_at": pred["created_at"],
@@ -157,7 +157,7 @@ def save_predictions_to_storage(analysis):
             supabase.table("predictions").insert({
                 "ticker": ticker,
                 "asset_name": asset,
-                "current_price": pred.get("current_price"),
+                "entry_price": pred.get("current_price"),
                 "price_target": pred.get("price_target"),
                 "target_period": pred.get("target_period", "3 months"),
                 "confidence": pred.get("confidence"),

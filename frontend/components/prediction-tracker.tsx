@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
+import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 
 interface Prediction {
   id: number
   ticker: string
   asset_name?: string
-  current_price: number
+  entry_price: number
+  live_price?: number | null
   price_target: number
   confidence: number
   reasoning: string
+  is_active?: boolean
   created_at?: string
   archived_at?: string
 }
@@ -27,11 +30,11 @@ export function PredictionTracker() {
         const res = await fetch(
           `${backendUrl.replace(/\/$/, '')}/api/prediction-tracker`
         )
-        
+
         if (!res.ok) {
           throw new Error(`Failed to fetch: ${res.status}`)
         }
-        
+
         const data = await res.json()
 
         if (data.success && data.predictions) {
@@ -80,64 +83,146 @@ export function PredictionTracker() {
   return (
     <div className="space-y-4">
       {predictions.map((p) => {
-        const percentChange = p.current_price && p.price_target 
-          ? ((p.price_target - p.current_price) / p.current_price) * 100 
+        const entry    = p.entry_price
+        const live     = p.live_price ?? null
+        const target   = p.price_target
+        const confidence = Math.round((p.confidence ?? 0.65) * 100)
+
+        // Progress toward target based on live price (falls back to entry if unavailable)
+        const comparePrice = live ?? entry
+        const progressToTarget = entry && target && entry !== target
+          ? Math.min(Math.max(((comparePrice - entry) / (target - entry)) * 100, -100), 100)
           : 0
-        
-        const hitTarget = p.current_price && p.price_target 
-          ? p.price_target >= p.current_price 
+
+        // How much live price has moved from entry
+        const liveChange = live && entry
+          ? ((live - entry) / entry) * 100
+          : null
+
+        // Badge logic
+        const hitTarget = live != null
+          ? (target >= entry ? live >= target : live <= target)
           : false
 
-        const confidence = Math.round((p.confidence ?? 0.65) * 100)
+        const TrendIcon = liveChange == null
+          ? Minus
+          : liveChange > 0 ? TrendingUp : liveChange < 0 ? TrendingDown : Minus
 
         return (
           <Card key={p.id} className="p-6 space-y-4">
+            {/* Header row */}
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="text-lg font-bold">{p.ticker}</h3>
-                {p.asset_name && <p className="text-sm text-muted-foreground">{p.asset_name}</p>}
+                {p.asset_name && (
+                  <p className="text-sm text-muted-foreground capitalize">{p.asset_name}</p>
+                )}
+                {p.created_at && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Predicted {new Date(p.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                  </p>
+                )}
               </div>
               <span className={`text-sm font-semibold px-3 py-1 rounded ${
-                hitTarget
+                p.is_active
+                  ? "bg-blue-500/20 text-blue-400"
+                  : hitTarget
                   ? "bg-green-500/20 text-green-400"
-                  : "bg-yellow-500/20 text-yellow-400"
+                  : "bg-zinc-500/20 text-zinc-400"
               }`}>
-                {hitTarget ? "Target Hit" : "Tracking"}
+                {p.is_active ? "Active" : hitTarget ? "Target Hit" : "Archived"}
               </span>
             </div>
 
-            <div className="text-sm text-muted-foreground space-y-1 text-center">
-              <div>Entry: ${p.current_price.toFixed(2)} | Target: ${p.price_target.toFixed(2)}</div>
-              {p.archived_at && (
-                <div>Archived: {new Date(p.archived_at).toLocaleDateString()}</div>
-              )}
+            {/* Three price pills */}
+            <div className="grid grid-cols-3 gap-3 text-center">
+              {/* Entry */}
+              <div className="rounded-lg bg-muted/50 p-3 space-y-1">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">Entry</p>
+                <p className="text-base font-bold">${entry.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p className="text-xs text-muted-foreground">at prediction</p>
+              </div>
+
+              {/* Live / Current */}
+              <div className={`rounded-lg p-3 space-y-1 border ${
+                liveChange == null
+                  ? "bg-muted/30 border-border"
+                  : liveChange > 0
+                  ? "bg-green-500/10 border-green-500/30"
+                  : liveChange < 0
+                  ? "bg-red-500/10 border-red-500/30"
+                  : "bg-muted/30 border-border"
+              }`}>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">Current</p>
+                {live != null ? (
+                  <>
+                    <p className={`text-base font-bold ${
+                      liveChange! > 0 ? "text-green-400" : liveChange! < 0 ? "text-red-400" : ""
+                    }`}>
+                      ${live.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <p className={`text-xs font-medium flex items-center justify-center gap-1 ${
+                      liveChange! > 0 ? "text-green-400" : liveChange! < 0 ? "text-red-400" : "text-muted-foreground"
+                    }`}>
+                      <TrendIcon className="h-3 w-3" />
+                      {liveChange! >= 0 ? "+" : ""}{liveChange!.toFixed(2)}%
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-base font-bold text-muted-foreground">—</p>
+                    <p className="text-xs text-muted-foreground">unavailable</p>
+                  </>
+                )}
+              </div>
+
+              {/* Target */}
+              <div className="rounded-lg bg-muted/50 p-3 space-y-1">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">Target</p>
+                <p className="text-base font-bold text-foreground">
+                  ${target.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className={`text-xs font-medium ${
+                  target > entry ? "text-green-400" : "text-red-400"
+                }`}>
+                  {target > entry ? "▲" : "▼"} {Math.abs(((target - entry) / entry) * 100).toFixed(1)}% from entry
+                </p>
+              </div>
             </div>
 
-            {p.reasoning && <p className="text-sm text-foreground text-center">{p.reasoning}</p>}
+            {/* Reasoning */}
+            {p.reasoning && (
+              <p className="text-sm text-muted-foreground text-center italic">"{p.reasoning}"</p>
+            )}
 
-            {/* Performance metrics */}
-            <div className="flex justify-center">
-              <div className="grid grid-cols-2 gap-4 max-w-md">
+            {/* Progress bars */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Progress toward target */}
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <span>Change</span>
-                  <span className={percentChange >= 0 ? "text-green-400" : "text-red-400"}>
-                    {percentChange >= 0 ? "+" : ""}{percentChange.toFixed(1)}%
+                  <span className="text-muted-foreground">Progress to target</span>
+                  <span className={progressToTarget >= 100 ? "text-green-400 font-semibold" : "font-semibold"}>
+                    {progressToTarget.toFixed(1)}%
                   </span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                   <div
-                    className={`h-2 rounded-full ${
-                      percentChange >= 0 ? "bg-green-500" : "bg-red-500"
+                    className={`h-2 rounded-full transition-all ${
+                      progressToTarget >= 100
+                        ? "bg-green-500"
+                        : progressToTarget >= 0
+                        ? "bg-blue-500"
+                        : "bg-red-500"
                     }`}
-                    style={{ width: `${Math.min(Math.abs(percentChange), 100)}%` }}
+                    style={{ width: `${Math.min(Math.abs(progressToTarget), 100)}%` }}
                   />
                 </div>
               </div>
 
+              {/* Confidence */}
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <span>Confidence</span>
+                  <span className="text-muted-foreground">AI Confidence</span>
                   <span className="font-semibold">{confidence}%</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
@@ -153,8 +238,14 @@ export function PredictionTracker() {
                   />
                 </div>
               </div>
-              </div>
             </div>
+
+            {/* Footer meta — only show archived date if present */}
+            {p.archived_at && (
+              <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t border-border">
+                <span>Archived: {new Date(p.archived_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</span>
+              </div>
+            )}
           </Card>
         )
       })}
